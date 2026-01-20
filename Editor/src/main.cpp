@@ -4,7 +4,9 @@
 int main() {
     BAGE engine;
 
-    engine.Init();
+    engine.Init("BAGE Editor", 1920, 1080);
+    engine.Run();
+    engine.Cleanup();
 
     return 0;
 }

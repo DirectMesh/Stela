@@ -13,24 +13,36 @@
     #endif
 #endif
 #include <thread>
+#include <iostream>
 
-void BAGE::Init()
+void BAGE::Init(const char* appName, int width, int height)
 {
     SDL_Init(SDL_INIT_VIDEO);
 
     #ifndef APPLE
+    RendererType = RenderType::Vulkan;
+    std::cout << "Using Vulkan Renderer" << std::endl;
     SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
     #else
+    RendererType = RenderType::Metal;
+    std::cout << "Using Metal Renderer" << std::endl;
     SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_METAL);
     #endif
 
-    SDL_Window *Window = SDL_CreateWindow("BAGE", 1920, 1080, WindowFlags);
+    Window = SDL_CreateWindow(appName, width, height, WindowFlags);
 
+    if (RendererType == RenderType::Vulkan) {
+        Vulkan vulkan;
+
+        vulkan.Init();
+    }
+}
+
+void BAGE::Run() {
     SDL_Event e;
     bool bQuit = false;
     bool stop_rendering = false;
 
-    // main loop
     while (!bQuit) {
         // Handle events on queue
         while (SDL_PollEvent(&e) != 0) {
@@ -52,4 +64,10 @@ void BAGE::Init()
             // throttle the speed to avoid the endless spinning
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
+}
+
+void BAGE::Cleanup()
+{
+    SDL_DestroyWindow(Window);
+    SDL_Quit();
 }

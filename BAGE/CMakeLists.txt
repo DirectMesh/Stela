@@ -1,7 +1,5 @@
-add_library(BAGE STATIC
-    src/BAGE.cpp
-    src/BAGE.h
-)
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.h")
+add_library(BAGE STATIC ${SOURCES})
 
 target_include_directories(BAGE PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -14,4 +12,4 @@ endif()
 
 if(TARGET Shaders)
     add_dependencies(BAGE Shaders)
-endif()   
+endif()
