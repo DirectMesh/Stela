@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <vector>
+#include <optional>
 
 class Vulkan {
     public:
@@ -10,6 +11,10 @@ class Vulkan {
     VkInstance Instance;
     const VkAllocationCallbacks* pAllocator = nullptr;
     VkDebugUtilsMessengerEXT DebugMessenger;
+    VkDevice Device;
+    VkPhysicalDeviceFeatures DeviceFeatures{};
+    VkQueue GraphicsQueue;
+    
 
     #ifdef NDEBUG
         const bool EnableValidationLayers = false;
@@ -27,6 +32,14 @@ class Vulkan {
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData);
 
+    struct QueueFamilyIndices {
+        std::optional<uint32_t> graphicsFamily;
+
+        bool IsComplete() {
+            return graphicsFamily.has_value();
+        }
+    };
+
     void Init();
     void CreateInstance();
     bool CheckValidationLayerSupport();
@@ -34,5 +47,10 @@ class Vulkan {
     void SetupDebugMessenger();
     void DestroyDebugUtilsMessengerEXT(VkInstance Instance, VkDebugUtilsMessengerEXT DebugMessenger, const VkAllocationCallbacks* pAllocator);
     void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& CreateInfo);
+    void PickPhysicalDevice();
+    int RateDeviceSuitability(VkPhysicalDevice Device);
+    QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice Device);
+    bool IsDeviceSuitable(VkPhysicalDevice device);
+    void CreateLogicalDevice();
     void Cleanup();
 };
