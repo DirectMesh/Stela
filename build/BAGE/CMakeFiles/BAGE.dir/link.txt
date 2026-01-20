@@ -1,2 +1,0 @@
-/usr/bin/ar qc libBAGE.a CMakeFiles/BAGE.dir/src/BAGE.cpp.o CMakeFiles/BAGE.dir/src/Render/Vulkan/Vulkan.cpp.o
-/usr/bin/ranlib libBAGE.a
