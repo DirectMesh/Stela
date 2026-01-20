@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/BAGE_RUNTIME.dir/link.d CMakeFiles/BAGE_RUNTIME.dir/src/main.cpp.o -o /home/biglands/Documents/BAGE/bin/BAGE_RUNTIME  -Wl,-rpath,/home/biglands/Documents/BAGE/build/ThirdParty/SDL ../BAGE/libBAGE.a ../ThirdParty/SDL/libSDL3.so.0.5.0 /usr/lib/x86_64-linux-gnu/libvulkan.so
