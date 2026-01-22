@@ -34,7 +34,7 @@ void BAGE::Init(const char* appName, int width, int height)
     if (RendererType == RenderType::Vulkan) {
         Vulkan vulkan;
 
-        vulkan.Init();
+        vulkan.Init(Window);
     }
 }
 
