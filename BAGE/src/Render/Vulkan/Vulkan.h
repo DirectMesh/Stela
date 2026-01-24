@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef APPLE
+#if !defined(__APPLE__)
 
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL.h>

@@ -19,12 +19,12 @@ void BAGE::Init(const char* appName, int width, int height)
 {
     SDL_Init(SDL_INIT_VIDEO);
 
-    #ifdef APPLE
-    std::cout << "Using Vulkan Renderer" << std::endl;
-    SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
+    #if defined(__APPLE__)
+        std::cout << "Using Metal Renderer" << std::endl;
+        SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_METAL);
     #else
-    std::cout << "Using Metal Renderer" << std::endl;
-    SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_METAL);
+        std::cout << "Using Vulkan Renderer" << std::endl;
+        SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
     #endif
 
     Window = SDL_CreateWindow(appName, width, height, WindowFlags);

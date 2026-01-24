@@ -1,10 +1,10 @@
 #pragma once
 #include <SDL3/SDL.h>
 
-#ifdef APPLE
-    #include "Render/Vulkan/Vulkan.h"
-#else
+#if defined(__APPLE__)
     #include "Render/Metal/Metal.h"
+#else
+    #include "Render/Vulkan/Vulkan.h"
 #endif
 
 class BAGE {
@@ -12,10 +12,10 @@ class BAGE {
 
     SDL_Window *Window = nullptr;
     
-    #ifdef APPLE
-        Vulkan vulkan;
-    #else
+    #if defined(__APPLE__)
         Metal metal;
+    #else
+        Vulkan vulkan;
     #endif
     
     void Init(const char* appName = "BAGE", int width = 1920, int height = 1080);

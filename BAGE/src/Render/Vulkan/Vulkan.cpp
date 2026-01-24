@@ -1,4 +1,4 @@
-#ifdef APPLE
+#if !defined(__APPLE__)
 
 #include "Vulkan.h"
 #include <stdexcept>
