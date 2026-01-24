@@ -1,3 +1,5 @@
+#ifdef APPLE
+
 #include "Vulkan.h"
 #include <stdexcept>
 #include <vector>
@@ -379,3 +381,5 @@ void Vulkan::Cleanup()
     vkDestroySurfaceKHR(Instance, Surface, nullptr);
     vkDestroyInstance(Instance, nullptr);
 }
+
+#endif

@@ -1,3 +1,6 @@
 [submodule "ThirdParty/SDL"]
 	path = ThirdParty/SDL
 	url = https://github.com/libsdl-org/SDL.git
+[submodule "ThirdParty/metal-cpp"]
+	path = ThirdParty/metal-cpp
+	url = https://github.com/bkaradzic/metal-cpp.git
