@@ -19,23 +19,21 @@ void BAGE::Init(const char* appName, int width, int height)
 {
     SDL_Init(SDL_INIT_VIDEO);
 
-    #ifndef APPLE
-    RendererType = RenderType::Vulkan;
+    #ifdef APPLE
     std::cout << "Using Vulkan Renderer" << std::endl;
     SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
     #else
-    RendererType = RenderType::Metal;
     std::cout << "Using Metal Renderer" << std::endl;
     SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_METAL);
     #endif
 
     Window = SDL_CreateWindow(appName, width, height, WindowFlags);
 
-    if (RendererType == RenderType::Vulkan) {
-        Vulkan vulkan;
-
+    #if defined(__APPLE__)
+        metal.Init();
+    #else
         vulkan.Init(Window);
-    }
+    #endif
 }
 
 void BAGE::Run() {
@@ -68,6 +66,17 @@ void BAGE::Run() {
 
 void BAGE::Cleanup()
 {
-    SDL_DestroyWindow(Window);
+    // First, clean up renderer
+    #if defined(__APPLE__)
+        metal.Cleanup();      // use the instance, not the class
+    #else
+        vulkan.Cleanup();
+    #endif
+
+    // Then destroy SDL window and quit
+    if (Window) {
+        SDL_DestroyWindow(Window);
+        Window = nullptr;
+    }
     SDL_Quit();
 }
