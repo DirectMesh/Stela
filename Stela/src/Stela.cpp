@@ -1,4 +1,4 @@
-#include "BAGE.h"
+#include "Stela.h"
 #include <SDL3/SDL.h>
 #if defined(__APPLE__) && (defined(TARGET_OS_IPHONE) || defined(TARGET_OS_TV))
     #include <SDL3/SDL_metal.h>  // For iOS/tvOS Metal rendering
@@ -15,30 +15,28 @@
 #include <thread>
 #include <iostream>
 
-void BAGE::Init(const char* appName, int width, int height)
+void Stela::Init(const char* appName, int width, int height)
 {
     SDL_Init(SDL_INIT_VIDEO);
 
-    #ifndef APPLE
-    RendererType = RenderType::Vulkan;
-    std::cout << "Using Vulkan Renderer" << std::endl;
-    SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
+    #if defined(__APPLE__)
+        std::cout << "Using Metal Renderer" << std::endl;
+        SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_METAL);
     #else
-    RendererType = RenderType::Metal;
-    std::cout << "Using Metal Renderer" << std::endl;
-    SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_METAL);
+        std::cout << "Using Vulkan Renderer" << std::endl;
+        SDL_WindowFlags WindowFlags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
     #endif
 
     Window = SDL_CreateWindow(appName, width, height, WindowFlags);
 
-    if (RendererType == RenderType::Vulkan) {
-        Vulkan vulkan;
-
+    #if defined(__APPLE__)
+        metal.Init();
+    #else
         vulkan.Init(Window);
-    }
+    #endif
 }
 
-void BAGE::Run() {
+void Stela::Run() {
     SDL_Event e;
     bool bQuit = false;
     bool stop_rendering = false;
@@ -66,8 +64,19 @@ void BAGE::Run() {
         }
 }
 
-void BAGE::Cleanup()
+void Stela::Cleanup()
 {
-    SDL_DestroyWindow(Window);
+    // First, clean up renderer
+    #if defined(__APPLE__)
+        metal.Cleanup();      // use the instance, not the class
+    #else
+        vulkan.Cleanup();
+    #endif
+
+    // Then destroy SDL window and quit
+    if (Window) {
+        SDL_DestroyWindow(Window);
+        Window = nullptr;
+    }
     SDL_Quit();
 }

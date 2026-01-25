@@ -1,4 +1,7 @@
 #pragma once
+
+#if !defined(__APPLE__)
+
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -17,6 +20,10 @@ class Vulkan {
     VkQueue GraphicsQueue;
     VkSurfaceKHR Surface;
     VkQueue PresentQueue;
+    VkSwapchainKHR SwapChain;
+    std::vector<VkImage> swapChainImages;
+    VkFormat SwapChainImageFormat;
+    VkExtent2D SwapChainExtent;
     
 
     #ifdef NDEBUG
@@ -44,6 +51,16 @@ class Vulkan {
         }
     };
 
+    const std::vector<const char*> deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+
+    struct SwapChainSupportDetails {
+        VkSurfaceCapabilitiesKHR capabilities;
+        std::vector<VkSurfaceFormatKHR> formats;
+        std::vector<VkPresentModeKHR> presentModes;
+    };
+
     void Init(SDL_Window *window);
     void CreateInstance();
     bool CheckValidationLayerSupport();
@@ -56,6 +73,14 @@ class Vulkan {
     int RateDeviceSuitability(VkPhysicalDevice Device);
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice Device);
     bool IsDeviceSuitable(VkPhysicalDevice device);
+    bool CheckExtensionSupport(VkPhysicalDevice Device);
     void CreateLogicalDevice();
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice Device);
+    VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& AvailableFormats);
+    VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& AvailablePresentModes);
+    VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& Capabilities, SDL_Window* Window);
+    void CreateSwapChain(SDL_Window* Window);
     void Cleanup();
 };
+
+#endif

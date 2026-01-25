@@ -1,36 +1,36 @@
 cmake_minimum_required(VERSION 3.16)
-project(BAGE_EDITOR)
+project(Stela_EDITOR)
 
-add_executable(BAGE_EDITOR
+add_executable(Stela_EDITOR
     src/main.cpp
 )
 
-set_property(TARGET BAGE_EDITOR PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:BAGE_EDITOR>")
+set_property(TARGET Stela_EDITOR PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:Stela_EDITOR>")
 
-target_include_directories(BAGE_EDITOR PUBLIC
+target_include_directories(Stela_EDITOR PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../BAGE/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../Stela/src"
 )
 
-# Link BAGE always
-target_link_libraries(BAGE_EDITOR PRIVATE BAGE)
+# Link Stela always
+target_link_libraries(Stela_EDITOR PRIVATE Stela)
 
-target_link_libraries(BAGE_EDITOR PRIVATE SDL3::SDL3)
+target_link_libraries(Stela_EDITOR PRIVATE SDL3::SDL3)
 
 # Platform-specific bundle settings
 if(APPLE AND NOT MOBILE_PLATFORM)
-    set_target_properties(BAGE_EDITOR PROPERTIES
+    set_target_properties(Stela_EDITOR PROPERTIES
         MACOSX_BUNDLE TRUE
-        PRODUCT_BUNDLE_IDENTIFIER "net.directmesh.BAGEEditor"
-        MACOSX_BUNDLE_BUNDLE_NAME "BAGE Editor"
+        PRODUCT_BUNDLE_IDENTIFIER "net.directmesh.StelaEditor"
+        MACOSX_BUNDLE_BUNDLE_NAME "Stela Editor"
         MACOSX_BUNDLE_BUNDLE_VERSION "1.0"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
     )
 elseif(IOS)
     # Configure Info.plist from template
-    set(EXECUTABLE_NAME "BAGE_EDITOR")
-    set(PRODUCT_BUNDLE_IDENTIFIER "net.directmesh.BAGEEditor")
-    set(PRODUCT_NAME "BAGE Editor")
+    set(EXECUTABLE_NAME "Stela_EDITOR")
+    set(PRODUCT_BUNDLE_IDENTIFIER "net.directmesh.StelaEditor")
+    set(PRODUCT_NAME "Stela Editor")
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0")
     set(MACOSX_BUNDLE_BUNDLE_VERSION "1.0")
     set(IPHONEOS_DEPLOYMENT_TARGET "11.0")
@@ -46,16 +46,16 @@ elseif(IOS)
     get_filename_component(INFO_PLIST_ABS "${INFO_PLIST_PATH}" ABSOLUTE)
     
     # Copy Info.plist to bundle after build using explicit path
-    add_custom_command(TARGET BAGE_EDITOR POST_BUILD
+    add_custom_command(TARGET Stela_EDITOR POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory
-        "$<TARGET_FILE_DIR:BAGE_EDITOR>"
+        "$<TARGET_FILE_DIR:Stela_EDITOR>"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${INFO_PLIST_ABS}"
-        "$<TARGET_FILE_DIR:BAGE_EDITOR>/Info.plist"
+        "$<TARGET_FILE_DIR:Stela_EDITOR>/Info.plist"
         COMMENT "Copying Info.plist to bundle"
     )
     
-    set_target_properties(BAGE_EDITOR PROPERTIES
+    set_target_properties(Stela_EDITOR PROPERTIES
         MACOSX_BUNDLE TRUE
         BUNDLE TRUE
         PRODUCT_BUNDLE_IDENTIFIER "${PRODUCT_BUNDLE_IDENTIFIER}"
@@ -72,9 +72,9 @@ elseif(IOS)
 elseif(TVOS)
     message(STATUS "Configuring for tvOS")
     # Configure Info.plist from template
-    set(EXECUTABLE_NAME "BAGE_EDITOR")
-    set(PRODUCT_BUNDLE_IDENTIFIER "net.directmesh.BAGEEditorTV")
-    set(PRODUCT_NAME "BAGE Editor")
+    set(EXECUTABLE_NAME "Stela_EDITOR")
+    set(PRODUCT_BUNDLE_IDENTIFIER "net.directmesh.StelaEditorTV")
+    set(PRODUCT_NAME "Stela Editor")
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0")
     set(MACOSX_BUNDLE_BUNDLE_VERSION "1.0")
     set(TVOS_DEPLOYMENT_TARGET "11.0")
@@ -93,22 +93,22 @@ elseif(TVOS)
     get_filename_component(INFO_PLIST_ABS "${INFO_PLIST_PATH}" ABSOLUTE)
     
     # Get the bundle output directory
-    get_target_property(BUNDLE_OUTPUT_DIR BAGE_EDITOR MACOSX_BUNDLE_LOCATION)
+    get_target_property(BUNDLE_OUTPUT_DIR Stela_EDITOR MACOSX_BUNDLE_LOCATION)
     if(NOT BUNDLE_OUTPUT_DIR)
         set(BUNDLE_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
     endif()
     
     # Copy Info.plist to bundle after build using explicit path
-    add_custom_command(TARGET BAGE_EDITOR POST_BUILD
+    add_custom_command(TARGET Stela_EDITOR POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory
-        "$<TARGET_FILE_DIR:BAGE_EDITOR>"
+        "$<TARGET_FILE_DIR:Stela_EDITOR>"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${INFO_PLIST_ABS}"
-        "$<TARGET_FILE_DIR:BAGE_EDITOR>/Info.plist"
+        "$<TARGET_FILE_DIR:Stela_EDITOR>/Info.plist"
         COMMENT "Copying Info.plist to bundle"
     )
     
-    set_target_properties(BAGE_EDITOR PROPERTIES
+    set_target_properties(Stela_EDITOR PROPERTIES
         MACOSX_BUNDLE TRUE
         BUNDLE TRUE
         PRODUCT_BUNDLE_IDENTIFIER "${PRODUCT_BUNDLE_IDENTIFIER}"
@@ -123,4 +123,4 @@ elseif(TVOS)
     )
 endif()
 
-set_target_properties(BAGE_EDITOR PROPERTIES OUTPUT_NAME "BAGE_EDITOR")   
+set_target_properties(Stela_EDITOR PROPERTIES OUTPUT_NAME "Stela_EDITOR")   
