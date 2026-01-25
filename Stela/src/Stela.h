@@ -7,7 +7,7 @@
     #include "Render/Vulkan/Vulkan.h"
 #endif
 
-class BAGE {
+class Stela {
     public:
 
     SDL_Window *Window = nullptr;
@@ -18,7 +18,7 @@ class BAGE {
         Vulkan vulkan;
     #endif
     
-    void Init(const char* appName = "BAGE", int width = 1920, int height = 1080);
+    void Init(const char* appName = "Stela", int width = 1920, int height = 1080);
     void Run();
     void Cleanup();
 };

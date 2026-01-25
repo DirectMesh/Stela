@@ -1,10 +1,10 @@
-#include <BAGE.h>
+#include <Stela.h>
 #include <iostream>
 
 int main() {
-    BAGE engine;
+    Stela engine;
 
-    engine.Init("BAGE Editor", 1920, 1080);
+    engine.Init("Stela Editor", 1920, 1080);
     engine.Run();
     engine.Cleanup();
 

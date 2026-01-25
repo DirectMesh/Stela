@@ -1,4 +1,4 @@
-#include "BAGE.h"
+#include "Stela.h"
 #include <SDL3/SDL.h>
 #if defined(__APPLE__) && (defined(TARGET_OS_IPHONE) || defined(TARGET_OS_TV))
     #include <SDL3/SDL_metal.h>  // For iOS/tvOS Metal rendering
@@ -15,7 +15,7 @@
 #include <thread>
 #include <iostream>
 
-void BAGE::Init(const char* appName, int width, int height)
+void Stela::Init(const char* appName, int width, int height)
 {
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -36,7 +36,7 @@ void BAGE::Init(const char* appName, int width, int height)
     #endif
 }
 
-void BAGE::Run() {
+void Stela::Run() {
     SDL_Event e;
     bool bQuit = false;
     bool stop_rendering = false;
@@ -64,7 +64,7 @@ void BAGE::Run() {
         }
 }
 
-void BAGE::Cleanup()
+void Stela::Cleanup()
 {
     // First, clean up renderer
     #if defined(__APPLE__)

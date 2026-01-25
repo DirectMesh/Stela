@@ -1,8 +1,8 @@
-#include <BAGE.h>
+#include <Stela.h>
 #include <iostream>
 
 int main() {
-    BAGE engine;
+    Stela engine;
 
     engine.Init();
     engine.Run();

@@ -34,9 +34,9 @@ void Vulkan::CreateInstance()
 
     VkApplicationInfo AppInfo{};
     AppInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    AppInfo.pApplicationName = "BAGE";
+    AppInfo.pApplicationName = "Stela";
     AppInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    AppInfo.pEngineName = "BAGE";
+    AppInfo.pEngineName = "Stela";
     AppInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     uint32_t apiVersion = VK_API_VERSION_1_0;
 
