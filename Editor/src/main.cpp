@@ -36,17 +36,25 @@ static bool ValidateRegisteredSystems()
             std::cerr << "[Editor] Invalid system '" << sys.name << "': null Update pointer\n";
             return false;
         }
+
         if (dladdr((void*)sys.Update, &info) == 0) {
             std::cerr << "[Editor] dladdr failed for system '" << sys.name << "'\n";
             return false;
         }
+
         if (!info.dli_fname) {
             std::cerr << "[Editor] dladdr returned null fname for system '" << sys.name << "'\n";
             return false;
         }
+
         std::string libpath(info.dli_fname);
-        if (libpath.find("Scripts.dylib") == std::string::npos) {
-            std::cerr << "[Editor] System '" << sys.name << "' points to unexpected image: " << libpath << "\n";
+
+        // Build expected script library name using ext
+        std::string expected = std::string("Scripts") + ext;
+
+        if (libpath.find(expected) == std::string::npos) {
+            std::cerr << "[Editor] System '" << sys.name
+                      << "' points to unexpected image: " << libpath << "\n";
             return false;
         }
     }
@@ -103,10 +111,20 @@ bool ReloadScripts(Stela* engine) {
     int result = system("cmake --build build --target Scripts");
     if (result != 0) {
         std::cerr << "[Editor] Scripts build failed with code " << result << std::endl;
-        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-                                 "Scripts Reload Failed",
-                                 "Building Scripts.dylib failed.\nCheck console output for errors.",
-                                 engine->Window);
+        SDL_MessageBoxData data{};
+        data.flags = SDL_MESSAGEBOX_ERROR;
+        data.title = "Scripts Reload Failed";
+        data.message = "Building Scripts failed.\nCheck console output.";
+        data.window = engine->Window;
+        data.numbuttons = 1;
+
+        SDL_MessageBoxButtonData button{};
+        button.buttonID = 0;
+        button.text = "OK";
+
+        data.buttons = &button;
+
+        SDL_ShowMessageBox(&data, nullptr);
         return false;
     }
 
