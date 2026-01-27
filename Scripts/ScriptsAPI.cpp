@@ -1,5 +1,6 @@
 #include <Scripts/ScriptsAPI.h>
 #include <Scripts/EngineGlobals.h>
+#include <Input/Input.h>
 #include <cstdio>
 #include <iostream>
 
@@ -7,8 +8,24 @@ static ScriptsAPI* gAPI = nullptr;
 
 static void PlayerSystem(float dt)
 {
-    if (gAPI && gAPI->Log)
-        gAPI->Log("PlayerSystem tick");
+    if (gAPI && gAPI->Log) {
+        if (Input::KeyPressed(Input::W)) {
+            gAPI->Log("PlayerSystem tick");
+        }
+        if (Input::KeyPressed(Input::Space)) {
+            gAPI->Log("Player jumped!");
+        }
+        if (Input::KeyDown(Input::A)) {
+            gAPI->Log("Player moving left");
+        }
+        if (Input::KeyReleased(Input::D)) {
+            gAPI->Log("Player stopped moving right");
+        }
+        if (Input::GamepadButtonPressed(0, Input::GP_A)) {
+            gAPI->Log("Gamepad A button pressed");
+            Input::SetGamepadVibration(0, Input::GP_VibrationLeft, 0.75f);
+        }
+    }
     else
         std::cout << "[PlayerSystem] gAPI null!" << std::endl;
 }
