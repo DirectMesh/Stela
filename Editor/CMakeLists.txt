@@ -13,9 +13,7 @@ target_include_directories(Stela_EDITOR PUBLIC
 )
 
 # Link Stela always
-target_link_libraries(Stela_EDITOR PRIVATE Stela)
-
-target_link_libraries(Stela_EDITOR PRIVATE SDL3::SDL3)
+target_link_libraries(Stela_EDITOR PRIVATE Stela SDL3::SDL3)
 
 # Platform-specific bundle settings
 if(APPLE AND NOT MOBILE_PLATFORM)
@@ -123,4 +121,4 @@ elseif(TVOS)
     )
 endif()
 
-set_target_properties(Stela_EDITOR PROPERTIES OUTPUT_NAME "Stela_EDITOR")   
+set_target_properties(Stela_EDITOR PROPERTIES OUTPUT_NAME "Stela_EDITOR")

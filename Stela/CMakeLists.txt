@@ -4,7 +4,14 @@ file(GLOB_RECURSE SOURCES
     "src/*.h"
 )
 
-add_library(Stela STATIC ${SOURCES})
+add_library(Stela SHARED ${SOURCES})
+
+set_target_properties(Stela PROPERTIES
+    PREFIX ""
+    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
+    LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
+    ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
+)
 
 # Objective-C++ Metal implementation (explicit!)
 if(APPLE)

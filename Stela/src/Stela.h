@@ -11,6 +11,13 @@ class Stela {
     public:
 
     SDL_Window *Window = nullptr;
+
+    bool bQuit = false;
+
+    uint64_t lastTime;
+    float deltaTime;
+
+    bool bPauseRun = false;
     
     #if defined(__APPLE__)
         Metal metal;
@@ -20,5 +27,6 @@ class Stela {
     
     void Init(const char* appName = "Stela", int width = 1920, int height = 1080);
     void Run();
+    void RunFrame();
     void Cleanup();
 };

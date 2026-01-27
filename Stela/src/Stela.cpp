@@ -12,8 +12,14 @@
         #include <SDL3/SDL_vulkan.h>
     #endif
 #endif
+#include "Scripts/ScriptsAPI.h"
+#include "Scripts/RegisterSystem.h"
+#include <atomic>
+
+std::atomic<bool> enginePaused{false};
 #include <thread>
 #include <iostream>
+#include <iomanip>
 
 void Stela::Init(const char* appName, int width, int height)
 {
@@ -34,34 +40,66 @@ void Stela::Init(const char* appName, int width, int height)
     #else
         vulkan.Init(Window);
     #endif
+
+    lastTime = SDL_GetPerformanceCounter();
 }
 
-void Stela::Run() {
+void Stela::Run()
+{
+    while (!bQuit) {
+        RunFrame();
+    }
+}
+
+void Stela::RunFrame()
+{
+    if (bQuit) return; // engine requested to quit
+
     SDL_Event e;
-    bool bQuit = false;
     bool stop_rendering = false;
 
-    while (!bQuit) {
-        // Handle events on queue
-        while (SDL_PollEvent(&e) != 0) {
-            // close the window when user alt-f4s or clicks the X button
-            if (e.type == SDL_EVENT_QUIT)
-                bQuit = true;
-
-            if (e.type == SDL_WINDOW_MINIMIZED) {
-                    stop_rendering = true;
-                }
-                if (e.type != SDL_WINDOW_MINIMIZED) {
-                    stop_rendering = false;
-                }
-            }
+    // Handle all SDL events for this frame
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_EVENT_QUIT) {
+            bQuit = true; // can be checked by Editor
         }
 
-        // do not draw if we are minimized
-        if (stop_rendering) {
-            // throttle the speed to avoid the endless spinning
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (e.type == SDL_WINDOW_MINIMIZED) {
+            stop_rendering = true;
+        } else {
+            stop_rendering = false;
         }
+    }
+
+    // Pause if Editor requested pause (e.g., hot-reload)
+    if (bPauseRun) {
+        extern std::atomic<bool> enginePaused;
+        enginePaused = true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        return;
+    }
+    {
+        extern std::atomic<bool> enginePaused;
+        enginePaused = false;
+    }
+
+    // Skip frame if window minimized
+    if (stop_rendering) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        return;
+    }
+
+    // DeltaTime
+    uint64_t now = SDL_GetPerformanceCounter();
+    deltaTime = (now - lastTime) / (float)SDL_GetPerformanceFrequency();
+    lastTime = now;
+
+    // Clamp deltaTime
+    if (deltaTime < 0.001f) deltaTime = 0.001f;
+    if (deltaTime > 0.05f) deltaTime = 0.05f;
+
+    // Run all engine systems
+    RunSystems(deltaTime);
 }
 
 void Stela::Cleanup()
