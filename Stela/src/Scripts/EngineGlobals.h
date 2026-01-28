@@ -7,7 +7,9 @@
 struct ScriptSystem
 {
     std::string name;
+    void (*Start)();
     void (*Update)(float);
+    void (*Shutdown)();
 };
 
 // One single global vector, no static

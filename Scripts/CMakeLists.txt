@@ -27,7 +27,7 @@ target_include_directories(Scripts PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../Stela/src"
 )
 
-target_link_libraries(Scripts PRIVATE Stela)
+target_link_libraries(Scripts PRIVATE Stela SDL3::SDL3)
 
 if(TARGET Shaders)
     add_dependencies(Scripts Shaders)

@@ -10,11 +10,16 @@
     #define SCRIPTS_API extern "C"
 #endif
 
+// Declaration macros for script life-cycle functions
+#define OnStart(FuncName)   void FuncName()
+#define OnUpdate(FuncName)  void FuncName(float dt)
+#define OnShutdown(FuncName) void FuncName()
+
 struct ScriptsAPI
 {
     int Version;
     void (*Log)(const char* message);
-    void (*RegisterSystem)(const char* name, void (*updateFn)(float));
+    void (*RegisterScript)(const char* name, void (*start)(), void (*update)(float), void (*shutdown)());
 };
 
 // Mandatory entry point
