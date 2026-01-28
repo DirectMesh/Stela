@@ -26,9 +26,7 @@
 
 namespace fs = std::filesystem;
 
-// ============================================================
 // Platform helpers
-// ============================================================
 
 static fs::path GetExeDir()
 {
@@ -57,9 +55,7 @@ static constexpr const char* ext = ".dylib";
 static constexpr const char* ext = ".so";
 #endif
 
-// ============================================================
 // Globals
-// ============================================================
 
 std::atomic<bool> quit{false};
 extern std::atomic<bool> enginePaused;
@@ -78,18 +74,14 @@ fs::path cmakeBuildDir;
 
 fs::file_time_type lastScriptWriteTime;
 
-// ============================================================
 // Logging
-// ============================================================
 
 void EngineLog(const char* msg)
 {
     std::cout << "[Stela] " << msg << std::endl;
 }
 
-// ============================================================
 // Validation
-// ============================================================
 
 static bool ValidateRegisteredSystems()
 {
@@ -112,9 +104,7 @@ static bool ValidateRegisteredSystems()
     return true;
 }
 
-// ============================================================
 // Script change detection
-// ============================================================
 
 bool ScriptsChanged()
 {
@@ -141,9 +131,7 @@ bool ScriptsChanged()
     return false;
 }
 
-// ============================================================
 // Reload logic
-// ============================================================
 
 bool ReloadScripts(Stela* engine)
 {
@@ -200,9 +188,7 @@ bool ReloadScripts(Stela* engine)
     return ValidateRegisteredSystems();
 }
 
-// ============================================================
 // Main
-// ============================================================
 
 int main()
 {
@@ -212,21 +198,21 @@ int main()
     exeDir = GetExeDir();
     std::string libName = std::string("Scripts") + ext;
 
-    // ---- Scripts source folder ----
+    // Scripts source folder
     for (auto& p : { exeDir / "Scripts", exeDir.parent_path() / "Scripts" })
     {
         if (fs::exists(p))
             scriptSourceFolder = p;
     }
 
-    // ---- Compiled library ----
+    // Compiled library
     for (auto& p : { exeDir / libName, exeDir / "bin" / libName })
     {
         if (fs::exists(p))
             scriptBuildLibPath = p;
     }
 
-    // ---- CMake build directory ----
+    // CMake build directory
     for (auto& p : {
              exeDir / "build",
              exeDir.parent_path() / "build",

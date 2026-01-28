@@ -24,6 +24,7 @@ class Vulkan {
     std::vector<VkImage> swapChainImages;
     VkFormat SwapChainImageFormat;
     VkExtent2D SwapChainExtent;
+    std::vector<VkImageView> swapChainImageViews;
     
 
     #ifdef NDEBUG
@@ -80,6 +81,7 @@ class Vulkan {
     VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& AvailablePresentModes);
     VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& Capabilities, SDL_Window* Window);
     void CreateSwapChain(SDL_Window* Window);
+    void CreateImageViews();
     void Cleanup();
 };
 
