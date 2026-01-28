@@ -46,3 +46,6 @@
 #build Files
 *build/
 *bin/
+
+#Built Shaders
+*.spv

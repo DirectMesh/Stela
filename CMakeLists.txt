@@ -48,14 +48,14 @@ else()
 
     if(GLSL_VALIDATOR)
         file(GLOB_RECURSE GLSL_SOURCE_FILES
-            "${PROJECT_SOURCE_DIR}/shaders/*.frag"
-            "${PROJECT_SOURCE_DIR}/shaders/*.vert"
-            "${PROJECT_SOURCE_DIR}/shaders/*.comp"
+            "${PROJECT_SOURCE_DIR}/Shaders/*.frag"
+            "${PROJECT_SOURCE_DIR}/Shaders/*.vert"
+            "${PROJECT_SOURCE_DIR}/Shaders/*.comp"
         )
 
         foreach(GLSL ${GLSL_SOURCE_FILES})
             get_filename_component(FILE_NAME ${GLSL} NAME)
-            set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.spv")
+            set(SPIRV "${PROJECT_SOURCE_DIR}/Shaders/${FILE_NAME}.spv")
 
             add_custom_command(
                 OUTPUT ${SPIRV}
