@@ -26,6 +26,7 @@ public:
     VkFormat SwapChainImageFormat;
     VkExtent2D SwapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
+    VkPipelineLayout PipelineLayout;
 
 #ifdef NDEBUG
     const bool EnableValidationLayers = false;
@@ -82,9 +83,9 @@ public:
     VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR> &AvailablePresentModes);
     VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR &Capabilities, SDL_Window *Window);
     void CreateSwapChain(SDL_Window *Window);
-    void CreateImageViews();
     static std::vector<char> readFile(const std::string &filename);
     VkShaderModule CreateShaderModule(const std::vector<char> &code);
+    void CreateImageViews();
     void CreateGraphicsPipeline();
     void Cleanup();
 };

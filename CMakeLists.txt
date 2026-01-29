@@ -78,3 +78,17 @@ add_subdirectory(Stela)
 add_subdirectory(Runtime)
 add_subdirectory(Editor)
 add_subdirectory(Scripts)
+
+# Copy Shaders and Scripts into runtime bin
+add_custom_target(CopyResources ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${PROJECT_SOURCE_DIR}/Shaders" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Shaders"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${PROJECT_SOURCE_DIR}/Scripts" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Scripts"
+    COMMENT "Copying Shaders and Scripts to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+)
+
+if(TARGET Shaders)
+    add_dependencies(CopyResources Shaders)
+endif()

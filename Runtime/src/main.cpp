@@ -8,6 +8,7 @@
 #endif
 
 #include <filesystem>
+#include <vector>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -105,12 +106,28 @@ int main()
     engine.Init();
 
     auto exeDir = GetExeDir();
-
     std::string libName = std::string("Scripts") + ext;
 
-    std::filesystem::path candidates[] = {
-        exeDir / libName,
-        exeDir / "bin" / libName};
+    // If Scripts folder exists next to the executable, prefer library paths inside it
+    std::filesystem::path scriptsFolderNextToExe = exeDir / "Scripts";
+    bool hasScriptsFolder = std::filesystem::exists(scriptsFolderNextToExe) && std::filesystem::is_directory(scriptsFolderNextToExe);
+
+    std::vector<std::filesystem::path> candidates;
+    if (hasScriptsFolder)
+    {
+        scriptSourceFolder = scriptsFolderNextToExe.string();
+        candidates = {
+            scriptsFolderNextToExe / "bin" / libName,
+            scriptsFolderNextToExe / libName,
+            exeDir / libName,
+            exeDir / "bin" / libName};
+    }
+    else
+    {
+        candidates = {
+            exeDir / libName,
+            exeDir / "bin" / libName};
+    }
 
     bool found = false;
     for (auto &p : candidates)
@@ -125,17 +142,21 @@ int main()
 
     if (!found)
     {
-        std::cerr << "[Editor] Failed to find Scripts library\n";
+        std::cerr << "[Runtime] Failed to find Scripts library\n";
         for (auto &p : candidates)
             std::cerr << "  Tried: " << p << "\n";
         return 1;
     }
 
+    std::cout << "[Runtime] Using Scripts at: "
+              << (hasScriptsFolder ? scriptSourceFolder : std::filesystem::path(scriptLibPath).parent_path().string())
+              << std::endl;
+
     // Load initial Scripts library
     scriptModule = DynamicLibrary::Load(scriptLibPath.c_str());
     if (!scriptModule)
     {
-        std::cerr << "[Editor] Failed to load " << scriptLibPath << std::endl;
+        std::cerr << "[Runtime] Failed to load " << scriptLibPath << std::endl;
         return 1;
     }
 
@@ -144,7 +165,7 @@ int main()
 
     if (!initFn || !shutdownFn)
     {
-        std::cerr << "[Editor] Failed to find Scripts_Init or Scripts_Shutdown\n";
+        std::cerr << "[Runtime] Failed to find Scripts_Init or Scripts_Shutdown\n";
         return 1;
     }
 
@@ -155,7 +176,7 @@ int main()
     RunStarts();
     if (!ValidateRegisteredSystems())
     {
-        std::cerr << "[Editor] Registered systems validation failed on initial load\n";
+        std::cerr << "[Runtime] Registered systems validation failed on initial load\n";
         return 1;
     }
     engine.Run();
