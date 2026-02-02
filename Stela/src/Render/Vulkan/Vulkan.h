@@ -32,6 +32,9 @@ public:
     std::vector<VkFramebuffer> SwapChainFramebuffers;
     VkCommandPool CommandPool;
     VkCommandBuffer CommandBuffer;
+    VkSemaphore ImageAvailableSemaphore;
+    std::vector<VkSemaphore> RenderFinishedSemaphores;
+    VkFence InFlightFence;
 
 #ifdef NDEBUG
     const bool EnableValidationLayers = false;
@@ -97,6 +100,8 @@ public:
     void CreateCommandPool();
     void CreateCommandBuffer();
     void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void CreateSyncObjects();
+    void DrawFrame();
     void Cleanup();
 };
 
