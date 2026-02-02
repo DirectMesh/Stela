@@ -30,6 +30,8 @@ public:
     VkPipelineLayout PipelineLayout;
     VkPipeline GraphicsPipeline;
     std::vector<VkFramebuffer> SwapChainFramebuffers;
+    VkCommandPool CommandPool;
+    VkCommandBuffer CommandBuffer;
 
 #ifdef NDEBUG
     const bool EnableValidationLayers = false;
@@ -92,6 +94,9 @@ public:
     void CreateRenderPass();
     void CreateGraphicsPipeline();
     void CreateFramebuffers();
+    void CreateCommandPool();
+    void CreateCommandBuffer();
+    void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void Cleanup();
 };
 
