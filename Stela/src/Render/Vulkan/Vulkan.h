@@ -29,6 +29,7 @@ public:
     VkRenderPass RenderPass;
     VkPipelineLayout PipelineLayout;
     VkPipeline GraphicsPipeline;
+    std::vector<VkFramebuffer> SwapChainFramebuffers;
 
 #ifdef NDEBUG
     const bool EnableValidationLayers = false;
@@ -90,6 +91,7 @@ public:
     void CreateImageViews();
     void CreateRenderPass();
     void CreateGraphicsPipeline();
+    void CreateFramebuffers();
     void Cleanup();
 };
 
