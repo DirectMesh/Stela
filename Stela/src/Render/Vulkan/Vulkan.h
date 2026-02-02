@@ -28,6 +28,7 @@ public:
     std::vector<VkImageView> swapChainImageViews;
     VkRenderPass RenderPass;
     VkPipelineLayout PipelineLayout;
+    VkPipeline GraphicsPipeline;
 
 #ifdef NDEBUG
     const bool EnableValidationLayers = false;
