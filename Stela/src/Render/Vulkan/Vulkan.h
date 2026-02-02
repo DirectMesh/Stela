@@ -26,6 +26,7 @@ public:
     VkFormat SwapChainImageFormat;
     VkExtent2D SwapChainExtent;
     std::vector<VkImageView> swapChainImageViews;
+    VkRenderPass RenderPass;
     VkPipelineLayout PipelineLayout;
 
 #ifdef NDEBUG
@@ -86,6 +87,7 @@ public:
     static std::vector<char> readFile(const std::string &filename);
     VkShaderModule CreateShaderModule(const std::vector<char> &code);
     void CreateImageViews();
+    void CreateRenderPass();
     void CreateGraphicsPipeline();
     void Cleanup();
 };
