@@ -4,3 +4,7 @@
 [submodule "ThirdParty/metal-cpp"]
 	path = ThirdParty/metal-cpp
 	url = https://github.com/bkaradzic/metal-cpp.git
+[submodule "ThirdParty/imgui"]
+	path = ThirdParty/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
