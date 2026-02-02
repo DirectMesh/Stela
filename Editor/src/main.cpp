@@ -12,6 +12,10 @@
 
 #include <SDL3/SDL.h>
 
+#include "imgui.h"
+#include "backends/imgui_impl_sdl3.h"
+#include "backends/imgui_impl_vulkan.h"
+
 #if defined(__APPLE__) || defined(__linux__)
 #include <dlfcn.h>
 #endif
@@ -73,6 +77,15 @@ fs::path scriptLiveLibPath;
 fs::path cmakeBuildDir;
 
 fs::file_time_type lastScriptWriteTime;
+
+#if !defined(__APPLE__)
+// SDL event watch used so Editor can process events before the engine
+static bool SDLEventWatch(void* userdata, SDL_Event* event)
+{
+    ImGui_ImplSDL3_ProcessEvent(event);
+    return true;
+}
+#endif
 
 // Logging
 
@@ -195,6 +208,79 @@ int main()
     Stela engine;
     engine.Init("Stela Editor", 1920, 1080);
 
+#if !defined(__APPLE__)
+    // ImGui Vulkan integration (Editor-only)
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    // Initialize SDL3 platform backend
+    ImGui_ImplSDL3_InitForVulkan(engine.Window);
+
+    // Create descriptor pool for ImGui
+    VkDescriptorPoolSize pool_sizes[] = {
+        {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}
+    };
+
+    VkDescriptorPoolCreateInfo pool_info{};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000 * (uint32_t)(sizeof(pool_sizes) / sizeof(pool_sizes[0]));
+    pool_info.poolSizeCount = (uint32_t)(sizeof(pool_sizes) / sizeof(pool_sizes[0]));
+    pool_info.pPoolSizes = pool_sizes;
+
+    VkDescriptorPool imguiDescriptorPool;
+    if (vkCreateDescriptorPool(engine.vulkan.Device, &pool_info, nullptr, &imguiDescriptorPool) != VK_SUCCESS)
+    {
+        std::cerr << "Failed to create ImGui descriptor pool" << std::endl;
+        return 1;
+    }
+
+    // Setup ImGui Vulkan init info (new backend API expects all pipeline info inside PipelineInfoMain)
+    ImGui_ImplVulkan_InitInfo init_info{};
+    init_info.Instance = engine.vulkan.Instance;
+    init_info.PhysicalDevice = engine.vulkan.PhysicalDevice;
+    init_info.Device = engine.vulkan.Device;
+    // find graphics queue family index
+    auto qf = engine.vulkan.FindQueueFamilies(engine.vulkan.PhysicalDevice);
+    init_info.QueueFamily = qf.graphicsFamily.value();
+    init_info.Queue = engine.vulkan.GraphicsQueue;
+    init_info.PipelineCache = VK_NULL_HANDLE;
+    init_info.DescriptorPool = imguiDescriptorPool;
+    init_info.DescriptorPoolSize = 0;
+    init_info.MinImageCount = 2;
+    init_info.ImageCount = static_cast<uint32_t>(engine.vulkan.swapChainImages.size());
+    init_info.Allocator = nullptr;
+    init_info.CheckVkResultFn = nullptr;
+
+    // Set the RenderPass in the PipelineInfoMain structure (newer API)
+    init_info.PipelineInfoMain.RenderPass = engine.vulkan.RenderPass;
+
+    ImGui_ImplVulkan_Init(&init_info);
+
+    // NOTE: Modern imgui Vulkan backend will create and upload font texture internally
+    // on first NewFrame() call. No explicit font-upload command buffer is required here.
+
+    // Event watch so Editor can receive SDL events before engine polls them
+    SDL_AddEventWatch(SDLEventWatch, nullptr);
+
+    // Set Vulkan command recording callback to render ImGui within engine render pass
+    engine.vulkan.ImGuiRenderCallback = [&](VkCommandBuffer cmd)
+    {
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+    };
+#endif
+
     exeDir = GetExeDir();
     std::string libName = std::string("Scripts") + ext;
 
@@ -279,16 +365,77 @@ int main()
         }
     });
 
-    while (!quit)
-    {
+        while (!quit)
+        {
+        // Begin ImGui frame (Editor-only, Vulkan)
+    #if !defined(__APPLE__)
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplSDL3_NewFrame();
+            ImGui::NewFrame();
+
+            // Full-window dockspace host
+            ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(viewport->Pos);
+            ImGui::SetNextWindowSize(viewport->Size);
+            ImGui::SetNextWindowViewport(viewport->ID);
+            ImGuiWindowFlags host_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+                | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+
+            // Make host window fully transparent so the central dock node does not dim the renderer
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+            ImGui::Begin("DockSpace Host", nullptr, host_flags);
+            ImGui::PopStyleColor();
+            ImGui::PopStyleVar(2);
+
+            ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
+            ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+
+            // Example Editor window docked into the dockspace
+            ImGui::Begin("Editor");
+            ImGui::Text("Stela Editor - ImGui overlay");
+            ImGui::Text("FPS: %.1f", 1.0f / engine.deltaTime);
+            ImGui::End();
+
+            ImGui::End(); // DockSpace Host
+
+            ImGui::Render();
+    #endif
+
         engine.RunFrame();
         if (engine.bQuit)
             quit = true;
-    }
+        }
 
     watcher.join();
 
+#if !defined(__APPLE__)
+    // Ensure GPU is idle, then shutdown ImGui and destroy descriptor pool
+    if (engine.vulkan.Device)
+        vkDeviceWaitIdle(engine.vulkan.Device);
+
+
+    // Remove render callback before shutdown
+    engine.vulkan.ImGuiRenderCallback = {};
+
+    // Remove the SDL event watch so no events are forwarded after backend shutdown
+    SDL_RemoveEventWatch(SDLEventWatch, nullptr);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+
+    // Destroy descriptor pool created for ImGui
+    if (imguiDescriptorPool != VK_NULL_HANDLE)
+    {
+        vkDestroyDescriptorPool(engine.vulkan.Device, imguiDescriptorPool, nullptr);
+        imguiDescriptorPool = VK_NULL_HANDLE;
+    }
+#endif
+
     engine.Cleanup();
+
     RunShutdowns();
     shutdownFn();
     DynamicLibrary::Unload(scriptModule);

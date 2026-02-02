@@ -9,10 +9,13 @@
 #include <vector>
 #include <optional>
 #include <fstream>
+#include <functional>
 
 class Vulkan
 {
 public:
+    // Optional callback used by external code (Editor) to record additional render commands
+    std::function<void(VkCommandBuffer)> ImGuiRenderCallback;
     VkInstance Instance;
     const VkAllocationCallbacks *pAllocator = nullptr;
     VkDebugUtilsMessengerEXT DebugMessenger;
@@ -103,6 +106,9 @@ public:
     void CreateSyncObjects();
     void DrawFrame();
     void Cleanup();
+
+    // Expose selected physical device for external use (e.g. Editor ImGui init)
+    VkPhysicalDevice PhysicalDevice = VK_NULL_HANDLE;
 };
 
 #endif

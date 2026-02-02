@@ -262,6 +262,9 @@ void Vulkan::PickPhysicalDevice()
 
     gPhysicalDevice = bestCandidate->second;
 
+    // expose selected device to the Vulkan instance
+    PhysicalDevice = gPhysicalDevice;
+
     VkPhysicalDeviceProperties chosenProps;
     vkGetPhysicalDeviceProperties(gPhysicalDevice, &chosenProps);
 
@@ -877,7 +880,14 @@ void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
     scissor.extent = SwapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+    // Main scene draw (triangle)
     vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+    // Allow external code (Editor) to record additional commands (e.g., ImGui)
+    if (ImGuiRenderCallback)
+    {
+        ImGuiRenderCallback(commandBuffer);
+    }
 
     vkCmdEndRenderPass(commandBuffer);
 

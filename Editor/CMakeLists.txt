@@ -15,6 +15,12 @@ target_include_directories(Stela_EDITOR PUBLIC
 # Link Stela always
 target_link_libraries(Stela_EDITOR PRIVATE Stela SDL3::SDL3)
 
+# ImGui is editor-only: link imgui core and the SDL/OpenGL backend
+if(TARGET imgui AND TARGET imgui_backends)
+    target_link_libraries(Stela_EDITOR PRIVATE imgui imgui_backends)
+    target_include_directories(Stela_EDITOR PRIVATE ${CMAKE_SOURCE_DIR}/ThirdParty/imgui)
+endif()
+
 # Platform-specific bundle settings
 if(APPLE AND NOT MOBILE_PLATFORM)
     set_target_properties(Stela_EDITOR PROPERTIES
