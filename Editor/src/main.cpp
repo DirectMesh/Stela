@@ -12,9 +12,17 @@
 
 #include <SDL3/SDL.h>
 
+#if !defined(__APPLE__)
 #include "imgui.h"
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_vulkan.h"
+#else
+#include "imgui.h"
+#include "backends/imgui_impl_sdl3.h"
+#include "backends/imgui_impl_metal.h"
+#include <Metal/Metal.hpp>
+#include <QuartzCore/QuartzCore.hpp>
+#endif
 
 #if defined(__APPLE__) || defined(__linux__)
 #include <dlfcn.h>
@@ -78,14 +86,12 @@ fs::path cmakeBuildDir;
 
 fs::file_time_type lastScriptWriteTime;
 
-#if !defined(__APPLE__)
 // SDL event watch used so Editor can process events before the engine
 static bool SDLEventWatch(void* userdata, SDL_Event* event)
 {
     ImGui_ImplSDL3_ProcessEvent(event);
     return true;
 }
-#endif
 
 // Logging
 
@@ -208,12 +214,13 @@ int main()
     Stela engine;
     engine.Init("Stela Editor", 1920, 1080);
 
-#if !defined(__APPLE__)
-    // ImGui Vulkan integration (Editor-only)
+    // ImGui Initialization
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
+#if !defined(__APPLE__)
+    // ImGui Vulkan integration (Editor-only)
     // Initialize SDL3 platform backend
     ImGui_ImplSDL3_InitForVulkan(engine.Window);
 
@@ -279,32 +286,57 @@ int main()
     {
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     };
+#else
+    // ImGui Metal integration
+    ImGui_ImplSDL3_InitForMetal(engine.Window);
+    ImGui_ImplMetal_Init(engine.metal.Device);
+    
+    // Set Metal callback
+    engine.metal.ImGuiRenderCallback = [&](MTL::RenderCommandEncoder* encoder) {
+        ImGui_ImplMetal_RenderDrawData(ImGui::GetDrawData(), engine.metal.metalCommandBuffer, encoder);
+    };
+    
+    // Event watch for Metal as well
+    SDL_AddEventWatch(SDLEventWatch, nullptr);
 #endif
 
     exeDir = GetExeDir();
     std::string libName = std::string("Scripts") + ext;
 
+    std::vector<fs::path> searchPaths;
+    fs::path currentPath = exeDir;
+    // Search up to 6 levels up to handle MacOS app bundle structure
+    // .../Stela/bin/Stela_EDITOR.app/Contents/MacOS -> .../Stela
+    for (int i = 0; i < 6; ++i) {
+        searchPaths.push_back(currentPath);
+        if (currentPath.has_parent_path())
+            currentPath = currentPath.parent_path();
+        else
+            break;
+    }
+
     // Scripts source folder
-    for (auto& p : { exeDir / "Scripts", exeDir.parent_path() / "Scripts" })
+    for (auto& base : searchPaths)
     {
-        if (fs::exists(p))
+        auto p = base / "Scripts";
+        if (fs::exists(p) && fs::is_directory(p))
             scriptSourceFolder = p;
     }
 
     // Compiled library
-    for (auto& p : { exeDir / libName, exeDir / "bin" / libName })
+    for (auto& base : searchPaths)
     {
-        if (fs::exists(p))
-            scriptBuildLibPath = p;
+        for (auto& sub : { base / libName, base / "bin" / libName })
+        {
+             if (fs::exists(sub) && !fs::is_directory(sub))
+                scriptBuildLibPath = sub;
+        }
     }
 
     // CMake build directory
-    for (auto& p : {
-             exeDir / "build",
-             exeDir.parent_path() / "build",
-             exeDir.parent_path().parent_path() / "build"
-         })
+    for (auto& base : searchPaths)
     {
+        auto p = base / "build";
         if (fs::exists(p) && fs::is_directory(p))
             cmakeBuildDir = p;
     }
@@ -366,47 +398,67 @@ int main()
     });
 
         while (!quit)
-        {
-        // Begin ImGui frame (Editor-only, Vulkan)
-    #if !defined(__APPLE__)
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplSDL3_NewFrame();
-            ImGui::NewFrame();
+    {
+        // Begin ImGui frame (Editor-only)
+        #if !defined(__APPLE__)
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+        #else
+        // For Metal, we need a render pass descriptor for the new frame to deduce pixel format.
+        // We create a dummy texture and descriptor.
+        MTL::TextureDescriptor* textureDesc = MTL::TextureDescriptor::alloc()->init();
+        textureDesc->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
+        textureDesc->setWidth(1);
+        textureDesc->setHeight(1);
+        MTL::Texture* dummyTexture = engine.metal.Device->newTexture(textureDesc);
+        textureDesc->release();
 
-            // Full-window dockspace host
-            ImGuiViewport* viewport = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(viewport->Pos);
-            ImGui::SetNextWindowSize(viewport->Size);
-            ImGui::SetNextWindowViewport(viewport->ID);
-            ImGuiWindowFlags host_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
-                | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+        MTL::RenderPassDescriptor* imguiPassDesc = MTL::RenderPassDescriptor::alloc()->init();
+        imguiPassDesc->colorAttachments()->object(0)->setTexture(dummyTexture);
+        
+        ImGui_ImplMetal_NewFrame(imguiPassDesc);
+        
+        imguiPassDesc->release();
+        dummyTexture->release();
+        
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+        #endif
 
-            // Make host window fully transparent so the central dock node does not dim the renderer
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-            ImGui::Begin("DockSpace Host", nullptr, host_flags);
-            ImGui::PopStyleColor();
-            ImGui::PopStyleVar(2);
+        // Full-window dockspace host
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGuiWindowFlags host_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
 
-            ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
-            ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+        // Make host window fully transparent so the central dock node does not dim the renderer
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::Begin("DockSpace Host", nullptr, host_flags);
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar(2);
 
-            // Example Editor window docked into the dockspace
-            ImGui::Begin("Editor");
-            ImGui::Text("Stela Editor - ImGui overlay");
-            ImGui::Text("FPS: %.1f", 1.0f / engine.deltaTime);
-            ImGui::End();
+        ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
-            ImGui::End(); // DockSpace Host
+        // Example Editor window docked into the dockspace
+        ImGui::Begin("Editor");
+        ImGui::Text("Stela Editor - ImGui overlay");
+        ImGui::Text("FPS: %.1f", 1.0f / engine.deltaTime);
+        ImGui::End();
 
-            ImGui::Render();
-    #endif
+        ImGui::End(); // DockSpace Host
+
+        ImGui::Render();
 
         engine.RunFrame();
         if (engine.bQuit)
             quit = true;
-        }
+    }
 
     watcher.join();
 
@@ -414,7 +466,6 @@ int main()
     // Ensure GPU is idle, then shutdown ImGui and destroy descriptor pool
     if (engine.vulkan.Device)
         vkDeviceWaitIdle(engine.vulkan.Device);
-
 
     // Remove render callback before shutdown
     engine.vulkan.ImGuiRenderCallback = {};
@@ -432,6 +483,14 @@ int main()
         vkDestroyDescriptorPool(engine.vulkan.Device, imguiDescriptorPool, nullptr);
         imguiDescriptorPool = VK_NULL_HANDLE;
     }
+#else
+    // Remove the SDL event watch so no events are forwarded after backend shutdown
+    SDL_RemoveEventWatch(SDLEventWatch, nullptr);
+
+    engine.metal.ImGuiRenderCallback = {};
+    ImGui_ImplMetal_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
 #endif
 
     engine.Cleanup();

@@ -15,6 +15,10 @@ target_include_directories(Stela_EDITOR PUBLIC
 # Link Stela always
 target_link_libraries(Stela_EDITOR PRIVATE Stela SDL3::SDL3)
 
+if(APPLE)
+    target_link_libraries(Stela_EDITOR PRIVATE metal-cpp "-framework Metal" "-framework QuartzCore" "-framework Foundation")
+endif()
+
 # ImGui is editor-only: link imgui core and the SDL/OpenGL backend
 if(TARGET imgui AND TARGET imgui_backends)
     target_link_libraries(Stela_EDITOR PRIVATE imgui imgui_backends)

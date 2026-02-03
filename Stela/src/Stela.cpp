@@ -36,7 +36,7 @@ void Stela::Init(const char *appName, int width, int height)
     Window = SDL_CreateWindow(appName, width, height, WindowFlags);
 
 #if defined(__APPLE__)
-    metal.Init();
+    metal.Init(Window);
 #else
     vulkan.Init(Window);
 #endif
@@ -113,7 +113,7 @@ void Stela::RunFrame()
     RunSystems(deltaTime);
 
 #if defined(__APPLE__)
-    // Add Metal DrawFrame
+    metal.draw();
 #else
     vulkan.DrawFrame();
 #endif
