@@ -20,30 +20,30 @@ endif()
 
 # Add ScriptLoader build target
 add_custom_target(ScriptLoaderBuild ALL
-    COMMAND dotnet build "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/ScriptLoader.csproj"
+    COMMAND dotnet build "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/ScriptLoader.csproj" -p:TargetFramework=net9.0
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net10.0/ScriptLoader.dll"
+        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net9.0/ScriptLoader.dll"
         "${SCRIPTS_OUTPUT_DIR}/ScriptLoader.dll"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net10.0/ScriptLoader.dll"
+        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net9.0/ScriptLoader.dll"
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ScriptLoader.dll"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net10.0/ScriptLoader.runtimeconfig.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net9.0/ScriptLoader.runtimeconfig.json"
         "${SCRIPTS_OUTPUT_DIR}/ScriptLoader.runtimeconfig.json"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net10.0/ScriptLoader.runtimeconfig.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net9.0/ScriptLoader.runtimeconfig.json"
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ScriptLoader.runtimeconfig.json"
-    COMMENT "Building C# ScriptLoader"
+    COMMENT "Building C# ScriptLoader (forcing TargetFramework=net9.0)"
 )
 
 # Add C# UserScripts build target
 add_custom_target(UserScriptsBuild ALL
-    COMMAND dotnet build "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/UserScripts/UserScripts.csproj"
+    COMMAND dotnet build "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/UserScripts/UserScripts.csproj" -p:TargetFramework=net9.0
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/UserScripts/bin/Debug/net10.0/UserScripts.dll"
+        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/UserScripts/bin/Debug/net9.0/UserScripts.dll"
         "${SCRIPTS_OUTPUT_DIR}/UserScripts.dll"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/UserScripts/bin/Debug/net10.0/UserScripts.dll"
+        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/UserScripts/bin/Debug/net9.0/UserScripts.dll"
         "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/UserScripts.dll"
     # We do NOT need UserScripts.runtimeconfig.json for the loader, but it doesn't hurt.
     # The Loader runs using its own runtimeconfig.
@@ -81,10 +81,84 @@ target_include_directories(Scripts
 target_include_directories(Scripts PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/../Stela/src"
-    "/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Host.osx-arm64/10.0.0/runtimes/osx-arm64/native"
 )
 
-target_link_libraries(Scripts PRIVATE Stela SDL3::SDL3 "/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Host.osx-arm64/10.0.0/runtimes/osx-arm64/native/libnethost.dylib")
+# Try to locate nethost header and library in common dotnet locations.
+# This covers SDK-native headers and runtime packs on Linux/macOS.
+file(GLOB DOTNET_HOST_HDRS
+    "/usr/share/dotnet/sdk/*/Sdks/Microsoft.NET.Sdk/targets/native/nethost.h"
+    "/usr/local/share/dotnet/sdk/*/Sdks/Microsoft.NET.Sdk/targets/native/nethost.h"
+    "/usr/share/dotnet/sdk/*/Sdks/Microsoft.NET.Sdk/targets/native/hostfxr.h"
+    "/usr/local/share/dotnet/sdk/*/Sdks/Microsoft.NET.Sdk/targets/native/hostfxr.h"
+    "/usr/share/dotnet/packs/*/runtimes/*/native/nethost.h"
+    "/usr/local/share/dotnet/packs/*/runtimes/*/native/nethost.h"
+    "/usr/share/dotnet/packs/*/runtimes/*/native/hostfxr.h"
+    "/usr/local/share/dotnet/packs/*/runtimes/*/native/hostfxr.h"
+    "/usr/share/dotnet/packs/*/runtimes/*/native/coreclr_delegates.h"
+)
+if(DOTNET_HOST_HDRS)
+    set(_host_dirs "")
+    foreach(_hdr IN LISTS DOTNET_HOST_HDRS)
+        get_filename_component(_dir ${_hdr} DIRECTORY)
+        list(FIND _host_dirs ${_dir} _found_index)
+        if(_found_index EQUAL -1)
+            list(APPEND _host_dirs ${_dir})
+            message(STATUS "Found dotnet host header (scripts): ${_hdr}")
+            message(STATUS "Adding host include dir (scripts): ${_dir}")
+        endif()
+    endforeach()
+    target_include_directories(Scripts PUBLIC ${_host_dirs})
+endif()
+
+file(GLOB DOTNET_NATIVE_DIRS
+    "/usr/share/dotnet/packs/*/runtimes/*/native"
+    "/usr/local/share/dotnet/packs/*/runtimes/*/native"
+)
+if(DOTNET_NATIVE_DIRS)
+    foreach(_d IN LISTS DOTNET_NATIVE_DIRS)
+        message(STATUS "Adding dotnet native dir to includes (scripts): ${_d}")
+    endforeach()
+    target_include_directories(Scripts PUBLIC ${DOTNET_NATIVE_DIRS})
+endif()
+
+# Known distro pack path where coreclr_delegates.h often lives; add explicitly if present
+set(_distro_coreclr_dir "/usr/share/dotnet/packs/Microsoft.NETCore.App.Host.arch-x64/9.0.11/runtimes/arch-x64/native")
+if(EXISTS ${_distro_coreclr_dir})
+    message(STATUS "Adding distro coreclr native dir (scripts): ${_distro_coreclr_dir}")
+    target_include_directories(Scripts PUBLIC ${_distro_coreclr_dir})
+endif()
+
+file(GLOB CORECLR_DELEGATES_HDRS
+    "/usr/share/dotnet/packs/*/runtimes/*/native/coreclr_delegates.h"
+    "/usr/local/share/dotnet/packs/*/runtimes/*/native/coreclr_delegates.h"
+)
+if(CORECLR_DELEGATES_HDRS)
+    list(GET CORECLR_DELEGATES_HDRS 0 _hdr)
+    get_filename_component(_dir ${_hdr} DIRECTORY)
+    message(STATUS "Found coreclr_delegates.h (scripts): ${_hdr}")
+    target_include_directories(Scripts PUBLIC ${_dir})
+endif()
+
+file(GLOB HOSTFXR_HDRS
+    "/usr/share/dotnet/packs/*/runtimes/*/native/hostfxr.h"
+    "/usr/local/share/dotnet/packs/*/runtimes/*/native/hostfxr.h"
+)
+if(HOSTFXR_HDRS)
+    list(GET HOSTFXR_HDRS 0 _hdr)
+    get_filename_component(_dir ${_hdr} DIRECTORY)
+    message(STATUS "Found hostfxr.h (scripts): ${_hdr}")
+    target_include_directories(Scripts PUBLIC ${_dir})
+endif()
+
+file(GLOB DOTNET_NETHOST_LIBS
+    "/usr/share/dotnet/packs/*/runtimes/*/native/libnethost.*"
+    "/usr/local/share/dotnet/packs/*/runtimes/*/native/libnethost.*"
+)
+if(DOTNET_NETHOST_LIBS)
+    list(GET DOTNET_NETHOST_LIBS 0 NETHOST_LIB)
+endif()
+
+target_link_libraries(Scripts PRIVATE Stela SDL3::SDL3 ${NETHOST_LIB})
 
 # When Scripts folder is next to exe, copy built library to root executable path
 if(CMAKE_RUNTIME_OUTPUT_DIRECTORY)
