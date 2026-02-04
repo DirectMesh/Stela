@@ -23,6 +23,8 @@ endif()
 
 target_include_directories(Stela
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    PUBLIC "/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Host.osx-arm64/10.0.0/runtimes/osx-arm64/native"
 )
 
 # Link Vulkan and SDL on non-Apple, SDL only on Apple
@@ -33,6 +35,7 @@ else()
         Metal::Metal
         metal-cpp
         SDL3::SDL3
+        "/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Host.osx-arm64/10.0.0/runtimes/osx-arm64/native/libnethost.dylib"
     )
 endif()
 

@@ -49,3 +49,7 @@
 
 #Built Shaders
 *.spv
+
+#.Net Build Output
+*bin/
+*obj/

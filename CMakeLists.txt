@@ -85,7 +85,7 @@ add_custom_target(CopyResources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${PROJECT_SOURCE_DIR}/Shaders" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Shaders"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${PROJECT_SOURCE_DIR}/Scripts" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Scripts"
+            "${PROJECT_SOURCE_DIR}/Scripts/DotNet/UserScripts" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Scripts"
     COMMENT "Copying Shaders and Scripts to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
 )
 
