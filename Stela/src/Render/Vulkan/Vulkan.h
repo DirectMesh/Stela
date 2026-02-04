@@ -34,10 +34,12 @@ public:
     VkPipeline GraphicsPipeline;
     std::vector<VkFramebuffer> SwapChainFramebuffers;
     VkCommandPool CommandPool;
-    VkCommandBuffer CommandBuffer;
-    VkSemaphore ImageAvailableSemaphore;
+    std::vector<VkCommandBuffer> CommandBuffers;
+    std::vector<VkSemaphore> ImageAvailableSemaphores;
     std::vector<VkSemaphore> RenderFinishedSemaphores;
-    VkFence InFlightFence;
+    std::vector<VkFence> InFlightFences;
+    uint32_t currentFrame = 0;
+    const int MAX_FRAMES_IN_FLIGHT = 2;
 
 #ifdef NDEBUG
     const bool EnableValidationLayers = false;
