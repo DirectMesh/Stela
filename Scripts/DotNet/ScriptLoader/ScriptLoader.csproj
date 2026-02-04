@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RollForward>Major</RollForward>
   </PropertyGroup>
 
 </Project>

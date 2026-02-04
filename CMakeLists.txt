@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
 
+if(WIN32)
+    add_compile_definitions(NOMINMAX)
+endif()
+
 # Detect mobile platforms and configure SDL3 options BEFORE adding SDL3 subdirectory
 if(IOS OR TVOS OR ANDROID)
     set(MOBILE_PLATFORM ON)
@@ -81,12 +85,12 @@ add_subdirectory(Scripts)
 
 # Copy Shaders and Scripts into runtime bin
 add_custom_target(CopyResources ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Stela_EDITOR>"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${PROJECT_SOURCE_DIR}/Shaders" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Shaders"
+            "${PROJECT_SOURCE_DIR}/Shaders" "$<TARGET_FILE_DIR:Stela_EDITOR>/Shaders"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${PROJECT_SOURCE_DIR}/Scripts/DotNet/UserScripts" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Scripts"
-    COMMENT "Copying Shaders and Scripts to ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+            "${PROJECT_SOURCE_DIR}/Scripts/DotNet/UserScripts" "$<TARGET_FILE_DIR:Stela_EDITOR>/Scripts"
+    COMMENT "Copying Shaders and Scripts to runtime bin"
 )
 
 if(TARGET Shaders)

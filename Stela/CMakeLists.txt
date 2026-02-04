@@ -7,6 +7,7 @@ file(GLOB_RECURSE SOURCES
 add_library(Stela SHARED ${SOURCES})
 
 set_target_properties(Stela PROPERTIES
+    WINDOWS_EXPORT_ALL_SYMBOLS ON
     PREFIX ""
     RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
     LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
@@ -34,11 +35,15 @@ file(GLOB DOTNET_HOST_HDRS
     "/usr/local/share/dotnet/sdk/*/Sdks/Microsoft.NET.Sdk/targets/native/nethost.h"
     "/usr/share/dotnet/sdk/*/Sdks/Microsoft.NET.Sdk/targets/native/hostfxr.h"
     "/usr/local/share/dotnet/sdk/*/Sdks/Microsoft.NET.Sdk/targets/native/hostfxr.h"
-    "/usr/share/dotnet/packs/*/runtimes/*/native/nethost.h"
-    "/usr/local/share/dotnet/packs/*/runtimes/*/native/nethost.h"
-    "/usr/share/dotnet/packs/*/runtimes/*/native/hostfxr.h"
-    "/usr/local/share/dotnet/packs/*/runtimes/*/native/hostfxr.h"
-    "/usr/share/dotnet/packs/*/runtimes/*/native/coreclr_delegates.h"
+    "/usr/share/dotnet/packs/*/*/runtimes/*/native/nethost.h"
+    "/usr/local/share/dotnet/packs/*/*/runtimes/*/native/nethost.h"
+    "/usr/share/dotnet/packs/*/*/runtimes/*/native/hostfxr.h"
+    "/usr/local/share/dotnet/packs/*/*/runtimes/*/native/hostfxr.h"
+    "/usr/share/dotnet/packs/*/*/runtimes/*/native/coreclr_delegates.h"
+    "C:/Program Files/dotnet/sdk/*/Sdks/Microsoft.NET.Sdk/targets/native/nethost.h"
+    "C:/Program Files/dotnet/packs/*/*/runtimes/*/native/nethost.h"
+    "C:/Program Files/dotnet/packs/*/*/runtimes/*/native/hostfxr.h"
+    "C:/Program Files/dotnet/packs/*/*/runtimes/*/native/coreclr_delegates.h"
 )
 if(DOTNET_HOST_HDRS)
     set(_host_dirs "")
@@ -56,8 +61,9 @@ endif()
 
 # Also add any pack 'native' dirs to includes (covers coreclr_delegates.h location)
 file(GLOB DOTNET_NATIVE_DIRS
-    "/usr/share/dotnet/packs/*/runtimes/*/native"
-    "/usr/local/share/dotnet/packs/*/runtimes/*/native"
+    "/usr/share/dotnet/packs/*/*/runtimes/*/native"
+    "/usr/local/share/dotnet/packs/*/*/runtimes/*/native"
+    "C:/Program Files/dotnet/packs/*/*/runtimes/*/native"
 )
 if(DOTNET_NATIVE_DIRS)
     foreach(_d IN LISTS DOTNET_NATIVE_DIRS)
@@ -88,6 +94,7 @@ endif()
 file(GLOB HOSTFXR_HDRS
     "/usr/share/dotnet/packs/*/runtimes/*/native/hostfxr.h"
     "/usr/local/share/dotnet/packs/*/runtimes/*/native/hostfxr.h"
+    "C:/Program Files/dotnet/packs/*/runtimes/*/native/hostfxr.h"
 )
 if(HOSTFXR_HDRS)
     list(GET HOSTFXR_HDRS 0 _hdr)
@@ -107,15 +114,33 @@ file(GLOB DOTNET_NETHOST_LIBS_SO
     "/usr/local/share/dotnet/packs/*/runtimes/*/native/libnethost.so"
 )
 file(GLOB DOTNET_NETHOST_LIBS_ANY
-    "/usr/share/dotnet/packs/*/runtimes/*/native/libnethost.*"
-    "/usr/local/share/dotnet/packs/*/runtimes/*/native/libnethost.*"
+    "/usr/share/dotnet/packs/*/*/runtimes/*/native/libnethost.*"
+    "/usr/local/share/dotnet/packs/*/*/runtimes/*/native/libnethost.*"
+    "C:/Program Files/dotnet/packs/*/*/runtimes/*/native/nethost.lib"
 )
 
 set(NETHOST_LIB "")
 if(DOTNET_NETHOST_LIBS_SO)
     list(GET DOTNET_NETHOST_LIBS_SO 0 NETHOST_LIB)
 elseif(DOTNET_NETHOST_LIBS_ANY)
-    list(GET DOTNET_NETHOST_LIBS_ANY 0 NETHOST_LIB)
+    # Filter candidates based on architecture
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(_arch_tag "x64")
+    else()
+        set(_arch_tag "x86")
+    endif()
+
+    foreach(_lib IN LISTS DOTNET_NETHOST_LIBS_ANY)
+        if(_lib MATCHES "${_arch_tag}")
+            set(NETHOST_LIB ${_lib})
+            break()
+        endif()
+    endforeach()
+
+    # Fallback to first if no match found
+    if(NOT NETHOST_LIB)
+        list(GET DOTNET_NETHOST_LIBS_ANY 0 NETHOST_LIB)
+    endif()
 endif()
 
 if(NETHOST_LIB)
@@ -136,7 +161,7 @@ else()
 endif()
 
 if(NOT APPLE)
-    target_link_libraries(Stela PRIVATE Vulkan::Vulkan SDL3::SDL3 ${NETHOST_LIB})
+    target_link_libraries(Stela PUBLIC Vulkan::Vulkan PRIVATE SDL3::SDL3 ${NETHOST_LIB})
 else()
     # Try to locate nethost header and library in common dotnet locations.
     file(GLOB DOTNET_NETHOST_HDRS

@@ -303,34 +303,47 @@ int main()
     }
 
     // Initial Load
-    // Trigger a build on startup to ensure we have latest.
+    // Only build if source changed or DLL missing
+    bool dllExists = fs::exists(exeDir / "UserScripts.dll");
+    
+    // Initialize lastScriptWriteTime from existing DLL if possible
+    if (dllExists) {
+        lastScriptWriteTime = fs::last_write_time(exeDir / "UserScripts.dll");
+    } else {
+        lastScriptWriteTime = fs::file_time_type::min();
+    }
+
     if (fs::exists(scriptFolder)) {
-        if (!ReloadScripts(&engine)) {
-            std::cerr << "[Editor] Initial script load failed.\n";
+        // Check if we need to build
+        if (!dllExists || ScriptsChanged()) {
+            if (!ReloadScripts(&engine)) {
+                std::cerr << "[Editor] Initial script load failed.\n";
+            }
+        } else {
+            // DLL exists and is newer than source, just load it
+            std::cout << "[Editor] Scripts up to date. Loading existing UserScripts.dll...\n";
+            ScriptEngine::Init(exeDir.string().c_str());
+            RunStarts();
         }
     } else {
         std::cerr << "[Editor] No scripts to load.\n";
     }
 
-    lastScriptWriteTime = fs::file_time_type::min();
-    ScriptsChanged(); // Prime the time
-
+    // Start watcher thread
     std::thread watcher([&]()
     {
         while (!quit)
         {
             if (ScriptsChanged())
             {
-                engine.bPauseRun = true;
-                // Wait for main thread to pause
-                // (In a real scenario we need a better sync mechanism, but for now this works)
-                
-                // Signal main thread to reload?
-                // Actually, ReloadScripts calls OpenGL/Vulkan/etc which should happen on main thread?
-                // No, dotnet build is fine on thread, but ScriptEngine::Init might register callbacks.
-                // The safest is to set a flag.
+                // We use a flag to signal the main thread
+                // Since ScriptsChanged() updates lastScriptWriteTime, we don't need to do it here
+                // But wait, ScriptsChanged() returns true if latest > lastScriptWriteTime
+                // and UPDATES lastScriptWriteTime.
+                // So if we call it here and it returns true, the state is updated.
+                // We just need to tell main thread to Reload.
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500)); // check every 500ms
         }
     });
 

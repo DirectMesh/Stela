@@ -37,43 +37,6 @@ static fs::path GetExeDir()
 #endif
 }
 
-// Simple build and copy logic for Runtime startup
-bool BuildAndCopyScripts(const fs::path& scriptFolder, const fs::path& exeDir)
-{
-    std::cout << "[Runtime] Building Scripts...\n";
-    std::string buildCmd = "cd \"" + scriptFolder.string() + "\" && dotnet build -c Debug";
-    
-    if (system(buildCmd.c_str()) != 0)
-    {
-        std::cerr << "[Runtime] dotnet build failed.\n";
-        return false;
-    }
-
-    fs::path dllPath;
-    fs::path configPath;
-    
-    if (fs::exists(scriptFolder / "bin")) {
-        for(auto& p : fs::recursive_directory_iterator(scriptFolder / "bin")) {
-            if (p.path().filename() == "UserScripts.dll") dllPath = p.path();
-            if (p.path().filename() == "UserScripts.runtimeconfig.json") configPath = p.path();
-        }
-    }
-
-    if (dllPath.empty() || configPath.empty()) {
-        std::cerr << "[Runtime] Could not find built artifacts.\n";
-        return false;
-    }
-
-    try {
-        fs::copy_file(dllPath, exeDir / "UserScripts.dll", fs::copy_options::overwrite_existing);
-        fs::copy_file(configPath, exeDir / "UserScripts.runtimeconfig.json", fs::copy_options::overwrite_existing);
-        return true;
-    } catch (std::exception& e) {
-        std::cerr << "[Runtime] Failed to copy script artifacts: " << e.what() << std::endl;
-        return false;
-    }
-}
-
 void EngineLog(const char* msg)
 {
     std::cout << "[Stela] " << msg << std::endl;
@@ -105,25 +68,11 @@ int main()
 
     fs::path scriptFolder = exeDir / "Scripts";
     
-    // Check if we need to build scripts
-    // If UserScripts.dll is missing OR if Scripts folder exists (we might want to ensure latest is built)
-    // For Runtime, maybe we only build if DLL is missing? 
-    // Or if the user provided source, they probably expect it to run.
+    // Runtime should not build scripts. It expects UserScripts.dll to be present.
     bool dllExists = fs::exists(exeDir / "UserScripts.dll");
-    bool sourceExists = fs::exists(scriptFolder);
 
-    if (sourceExists) {
-        // If source exists, let's try to build to ensure we run the code provided in Scripts folder
-        // This matches the "drop scripts folder and run" workflow.
-        if (!BuildAndCopyScripts(scriptFolder, exeDir)) {
-            std::cerr << "[Runtime] Failed to build scripts from " << scriptFolder << "\n";
-            // If build failed, maybe try running existing DLL if available?
-            if (dllExists) {
-                std::cout << "[Runtime] Falling back to existing UserScripts.dll\n";
-            }
-        }
-    } else if (!dllExists) {
-        std::cerr << "[Runtime] No 'Scripts' folder and no 'UserScripts.dll' found.\n";
+    if (!dllExists) {
+        std::cerr << "[Runtime] Error: 'UserScripts.dll' not found. Please build the project using the Editor.\n";
     }
 
     // Init Engine
