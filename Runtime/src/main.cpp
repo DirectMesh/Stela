@@ -49,13 +49,6 @@ int main()
 
     auto exeDir = GetExeDir();
     
-#if defined(__APPLE__)
-    if (exeDir.filename() == "MacOS" && exeDir.parent_path().filename() == "Contents") {
-        exeDir = exeDir.parent_path().parent_path().parent_path();
-        std::cout << "[Runtime] Running in Bundle. Setting Root Directory to: " << exeDir << std::endl;
-    }
-#endif
-
     // Ensure we are working in the correct directory (fixes relative path issues)
     fs::current_path(exeDir);
     

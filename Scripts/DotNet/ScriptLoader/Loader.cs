@@ -63,6 +63,8 @@ namespace Stela
                 using var ms = new MemoryStream(assemblyBytes);
                 var assembly = _scriptContext.LoadFromStream(ms);
 
+                Console.WriteLine($"[Loader] Loaded assembly: {assembly.FullName}");
+
                 var managerType = assembly.GetType("Stela.ScriptManager");
                 if (managerType == null)
                 {

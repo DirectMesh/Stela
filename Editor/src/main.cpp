@@ -92,12 +92,18 @@ bool ScriptsChanged()
 
         // Check for changes in Scripts folder
         if (fs::exists(scriptFolder)) {
-            for (auto& p : fs::recursive_directory_iterator(scriptFolder))
+            for (auto it = fs::recursive_directory_iterator(scriptFolder); it != fs::recursive_directory_iterator(); ++it)
             {
-                if (p.is_regular_file()) {
-                    auto ext = p.path().extension();
+                if (it->is_directory()) {
+                    std::string name = it->path().filename().string();
+                    if (name == "bin" || name == "obj" || name == ".git" || name == ".vs") {
+                        it.disable_recursion_pending();
+                    }
+                }
+                else if (it->is_regular_file()) {
+                    auto ext = it->path().extension();
                     if (ext == ".cs" || ext == ".csproj")
-                        latest = std::max(latest, fs::last_write_time(p));
+                        latest = std::max(latest, fs::last_write_time(*it));
                 }
             }
         }
@@ -280,11 +286,18 @@ int main()
 
     exeDir = GetExeDir();
     
+    // Check for Dev Environment (Source Scripts)
+    bool devEnv = false;
 #if defined(__APPLE__)
-    // If running from App Bundle (Contents/MacOS), set root to the folder containing the bundle (bin)
     if (exeDir.filename() == "MacOS" && exeDir.parent_path().filename() == "Contents") {
-        exeDir = exeDir.parent_path().parent_path().parent_path();
-        std::cout << "[Editor] Running in Bundle. Setting Root Directory to: " << exeDir << std::endl;
+        fs::path potentialRoot = exeDir.parent_path().parent_path().parent_path().parent_path(); // .../Stela
+        fs::path sourceScripts = potentialRoot / "Scripts" / "DotNet" / "UserScripts"; // Source location
+        
+        if (fs::exists(sourceScripts) && fs::exists(sourceScripts / "UserScripts.csproj")) {
+            scriptFolder = sourceScripts;
+            devEnv = true;
+            std::cout << "[Editor] Development Environment Detected. Using Source Scripts at: " << scriptFolder << std::endl;
+        }
     }
 #endif
 
@@ -298,7 +311,9 @@ int main()
     setenv("PATH", newPath.c_str(), 1);
     #endif
 
-    scriptFolder = exeDir / "Scripts";
+    if (!devEnv) {
+        scriptFolder = exeDir / "Scripts";
+    }
 
     if (!fs::exists(scriptFolder)) {
         std::cerr << "[Editor] Warning: 'Scripts' folder not found next to executable (" << scriptFolder << ")\n";

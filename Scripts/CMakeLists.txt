@@ -29,12 +29,19 @@ add_custom_target(ScriptLoaderBuild ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net9.0/ScriptLoader.dll"
         "$<TARGET_FILE_DIR:Stela_EDITOR>/ScriptLoader.dll"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Stela_RUNTIME>"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net9.0/ScriptLoader.dll"
+        "$<TARGET_FILE_DIR:Stela_RUNTIME>/ScriptLoader.dll"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net9.0/ScriptLoader.runtimeconfig.json"
         "${SCRIPTS_OUTPUT_DIR}/ScriptLoader.runtimeconfig.json"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net9.0/ScriptLoader.runtimeconfig.json"
         "$<TARGET_FILE_DIR:Stela_EDITOR>/ScriptLoader.runtimeconfig.json"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/ScriptLoader/bin/Debug/net9.0/ScriptLoader.runtimeconfig.json"
+        "$<TARGET_FILE_DIR:Stela_RUNTIME>/ScriptLoader.runtimeconfig.json"
     COMMENT "Building C# ScriptLoader (forcing TargetFramework=net9.0)"
 )
 
@@ -49,6 +56,10 @@ add_custom_target(UserScriptsBuild ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/UserScripts/bin/Debug/net9.0/UserScripts.dll"
         "$<TARGET_FILE_DIR:Stela_EDITOR>/UserScripts.dll"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Stela_RUNTIME>"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/DotNet/UserScripts/bin/Debug/net9.0/UserScripts.dll"
+        "$<TARGET_FILE_DIR:Stela_RUNTIME>/UserScripts.dll"
     # We do NOT need UserScripts.runtimeconfig.json for the loader, but it doesn't hurt.
     # The Loader runs using its own runtimeconfig.
     COMMENT "Building C# UserScripts"
@@ -185,6 +196,13 @@ if(DOTNET_NETHOST_LIBS_ANY)
     # Fallback if no arch match found (e.g. non-windows or weird naming)
     if(NOT NETHOST_LIB)
         list(GET DOTNET_NETHOST_LIBS_ANY 0 NETHOST_LIB)
+    endif()
+endif()
+
+if(NOT NETHOST_LIB AND APPLE)
+    set(_fallback "/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Host.osx-arm64/10.0.0/runtimes/osx-arm64/native/libnethost.dylib")
+    if(EXISTS "${_fallback}")
+        set(NETHOST_LIB "${_fallback}")
     endif()
 endif()
 

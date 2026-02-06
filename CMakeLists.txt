@@ -28,6 +28,9 @@ if(APPLE)
     find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
     find_library(COCOA_FRAMEWORK Cocoa REQUIRED)
 
+    # Vulkan (MoltenVK)
+    find_package(Vulkan REQUIRED)
+
     # Vulkan-like imported target
     add_library(Metal::Metal INTERFACE IMPORTED)
 
@@ -90,6 +93,11 @@ add_custom_target(CopyResources ALL
             "${PROJECT_SOURCE_DIR}/Shaders" "$<TARGET_FILE_DIR:Stela_EDITOR>/Shaders"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${PROJECT_SOURCE_DIR}/Scripts/DotNet/UserScripts" "$<TARGET_FILE_DIR:Stela_EDITOR>/Scripts"
+    
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Stela_RUNTIME>"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${PROJECT_SOURCE_DIR}/Shaders" "$<TARGET_FILE_DIR:Stela_RUNTIME>/Shaders"
+    
     COMMENT "Copying Shaders and Scripts to runtime bin"
 )
 

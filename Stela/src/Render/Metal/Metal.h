@@ -5,7 +5,7 @@
 #include <simd/simd.h>
 #include <functional>
 
-namespace MTL { class Device; class Library; class CommandQueue; class CommandBuffer; class RenderPipelineState; class Buffer; class RenderCommandEncoder; }
+namespace MTL { class Device; class Library; class CommandQueue; class CommandBuffer; class RenderPipelineState; class Buffer; class RenderCommandEncoder; class Texture; }
 namespace CA { class MetalDrawable; }
 
 #ifdef __OBJC__

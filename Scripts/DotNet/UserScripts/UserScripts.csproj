@@ -4,7 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
-    <RollForward>Major</RollForward>
+    <RollForward>LatestMinor</RollForward>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <EnableDynamicLoading>true</EnableDynamicLoading>
   </PropertyGroup>

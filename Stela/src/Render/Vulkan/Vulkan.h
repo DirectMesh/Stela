@@ -1,7 +1,5 @@
 #pragma once
 
-#if !defined(__APPLE__)
-
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -127,5 +125,3 @@ public:
     // Expose selected physical device for external use (e.g. Editor ImGui init)
     VkPhysicalDevice PhysicalDevice = VK_NULL_HANDLE;
 };
-
-#endif

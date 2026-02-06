@@ -20,6 +20,7 @@ if(APPLE)
         src/Render/Metal/Metal.mm
         src/Render/Metal/MetalPrivate.mm
     )
+
 endif()
 
 target_include_directories(Stela
@@ -192,6 +193,7 @@ else()
         metal-cpp
         SDL3::SDL3
         ${NETHOST_LIB}
+        Vulkan::Vulkan
     )
 endif()
 

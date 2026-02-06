@@ -219,7 +219,7 @@ void Metal::sendRenderCommand() {
         drawablePass->release();
     }
 
-    metalCommandBuffer->presentDrawable((__bridge MTL::Drawable*)currentDrawable);
+    metalCommandBuffer->presentDrawable((__bridge MTL::Drawable*)drawable);
     metalCommandBuffer->commit();
     metalCommandBuffer->waitUntilCompleted();
 }
