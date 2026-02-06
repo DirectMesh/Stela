@@ -32,6 +32,7 @@ public:
     VkRenderPass RenderPass;
     VkPipelineLayout PipelineLayout;
     VkPipeline GraphicsPipeline;
+    VkPipeline SwapChainPipeline;
     std::vector<VkFramebuffer> SwapChainFramebuffers;
     VkCommandPool CommandPool;
     std::vector<VkCommandBuffer> CommandBuffers;
@@ -40,6 +41,15 @@ public:
     std::vector<VkFence> InFlightFences;
     uint32_t currentFrame = 0;
     const int MAX_FRAMES_IN_FLIGHT = 2;
+
+    // Offscreen Resources
+    VkImage OffscreenImage;
+    VkDeviceMemory OffscreenImageMemory;
+    VkImageView OffscreenImageView;
+    VkSampler OffscreenSampler;
+    VkFramebuffer OffscreenFramebuffer;
+    VkRenderPass OffscreenRenderPass;
+    VkDescriptorSet OffscreenDescriptorSet = VK_NULL_HANDLE;
 
 #ifdef NDEBUG
     const bool EnableValidationLayers = false;
@@ -89,6 +99,8 @@ public:
     int RateDeviceSuitability(VkPhysicalDevice Device);
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice Device);
     bool IsDeviceSuitable(VkPhysicalDevice device);
+    
+    void RecordSceneCommands(VkCommandBuffer commandBuffer, VkPipeline pipeline);
     bool CheckExtensionSupport(VkPhysicalDevice Device);
     void CreateLogicalDevice();
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice Device);
@@ -98,8 +110,11 @@ public:
     void CreateSwapChain(SDL_Window *Window);
     static std::vector<char> readFile(const std::string &filename);
     VkShaderModule CreateShaderModule(const std::vector<char> &code);
+    uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+    void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
     void CreateImageViews();
     void CreateRenderPass();
+    void CreateOffscreenResources(); // New
     void CreateGraphicsPipeline();
     void CreateFramebuffers();
     void CreateCommandPool();

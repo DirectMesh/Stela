@@ -26,8 +26,21 @@ void Metal::Init(SDL_Window* window) {
     metalLayer.drawableSize = CGSizeMake(width, height);
     createTriangle();
     createDefaultLibrary();
+    createOffscreenResources();
     createCommandQueue();
     createRenderPipeline();
+}
+
+void Metal::createOffscreenResources() {
+    MTL::TextureDescriptor* textureDescriptor = MTL::TextureDescriptor::alloc()->init();
+    textureDescriptor->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
+    textureDescriptor->setWidth((NS::UInteger)metalLayer.drawableSize.width);
+    textureDescriptor->setHeight((NS::UInteger)metalLayer.drawableSize.height);
+    textureDescriptor->setUsage(MTL::TextureUsageRenderTarget | MTL::TextureUsageShaderRead);
+    textureDescriptor->setStorageMode(MTL::StorageModePrivate);
+
+    OffscreenTexture = Device->newTexture(textureDescriptor);
+    textureDescriptor->release();
 }
 
 void Metal::CreateDevice() {
@@ -157,30 +170,58 @@ void Metal::sendRenderCommand() {
 
     metalCommandBuffer = metalCommandQueue->commandBuffer();
 
-    MTL::RenderPassDescriptor* renderPassDescriptor = MTL::RenderPassDescriptor::alloc()->init();
-    MTL::RenderPassColorAttachmentDescriptor* cd = renderPassDescriptor->colorAttachments()->object(0);
-    
-    id<CAMetalDrawable> currentDrawable = (__bridge id<CAMetalDrawable>)metalDrawable;
-    cd->setTexture((__bridge MTL::Texture*)currentDrawable.texture);
-    
-    cd->setLoadAction(MTL::LoadActionClear);
-    cd->setClearColor(MTL::ClearColor(41.0f/255.0f, 42.0f/255.0f, 48.0f/255.0f, 1.0));
-    cd->setStoreAction(MTL::StoreActionStore);
-
-    MTL::RenderCommandEncoder* renderCommandEncoder = metalCommandBuffer->renderCommandEncoder(renderPassDescriptor);
-    encodeRenderCommand(renderCommandEncoder);
-
     if (ImGuiRenderCallback) {
-        ImGuiRenderCallback(renderCommandEncoder);
-    }
+        // 1. Offscreen Pass
+        MTL::RenderPassDescriptor* offscreenPass = MTL::RenderPassDescriptor::alloc()->init();
+        MTL::RenderPassColorAttachmentDescriptor* ca = offscreenPass->colorAttachments()->object(0);
+        ca->setTexture(OffscreenTexture);
+        ca->setLoadAction(MTL::LoadActionClear);
+        ca->setClearColor(MTL::ClearColor(0.0, 0.0, 0.0, 1.0));
+        ca->setStoreAction(MTL::StoreActionStore);
 
-    renderCommandEncoder->endEncoding();
+        MTL::RenderCommandEncoder* offscreenEncoder = metalCommandBuffer->renderCommandEncoder(offscreenPass);
+        encodeRenderCommand(offscreenEncoder);
+        offscreenEncoder->endEncoding();
+        offscreenPass->release();
+
+        // 2. Drawable Pass (UI)
+        MTL::RenderPassDescriptor* drawablePass = MTL::RenderPassDescriptor::alloc()->init();
+        MTL::RenderPassColorAttachmentDescriptor* da = drawablePass->colorAttachments()->object(0);
+        
+        id<CAMetalDrawable> currentDrawable = (__bridge id<CAMetalDrawable>)metalDrawable;
+        da->setTexture((__bridge MTL::Texture*)currentDrawable.texture);
+        
+        da->setLoadAction(MTL::LoadActionClear);
+        da->setClearColor(MTL::ClearColor(41.0f/255.0f, 42.0f/255.0f, 48.0f/255.0f, 1.0));
+        da->setStoreAction(MTL::StoreActionStore);
+
+        MTL::RenderCommandEncoder* drawableEncoder = metalCommandBuffer->renderCommandEncoder(drawablePass);
+
+        ImGuiRenderCallback(drawableEncoder);
+        
+        drawableEncoder->endEncoding();
+        drawablePass->release();
+    } else {
+        // Runtime Mode: Render directly to Drawable
+        MTL::RenderPassDescriptor* drawablePass = MTL::RenderPassDescriptor::alloc()->init();
+        MTL::RenderPassColorAttachmentDescriptor* da = drawablePass->colorAttachments()->object(0);
+        
+        id<CAMetalDrawable> currentDrawable = (__bridge id<CAMetalDrawable>)metalDrawable;
+        da->setTexture((__bridge MTL::Texture*)currentDrawable.texture);
+        
+        da->setLoadAction(MTL::LoadActionClear);
+        da->setClearColor(MTL::ClearColor(0.0, 0.0, 0.0, 1.0));
+        da->setStoreAction(MTL::StoreActionStore);
+
+        MTL::RenderCommandEncoder* encoder = metalCommandBuffer->renderCommandEncoder(drawablePass);
+        encodeRenderCommand(encoder);
+        encoder->endEncoding();
+        drawablePass->release();
+    }
 
     metalCommandBuffer->presentDrawable((__bridge MTL::Drawable*)currentDrawable);
     metalCommandBuffer->commit();
     metalCommandBuffer->waitUntilCompleted();
-
-    renderPassDescriptor->release();
 }
 
 void Metal::encodeRenderCommand(MTL::RenderCommandEncoder* renderCommandEncoder) {

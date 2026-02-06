@@ -31,6 +31,8 @@ public:
     MTL::CommandBuffer* metalCommandBuffer;
     MTL::RenderPipelineState* metalRenderPSO;
     MTL::Buffer* triangleVertexBuffer;
+
+    MTL::Texture* OffscreenTexture;
     
     std::function<void(MTL::RenderCommandEncoder*)> ImGuiRenderCallback;
 
@@ -38,6 +40,7 @@ public:
     void CreateDevice();
     void createTriangle();
     void createDefaultLibrary();
+    void createOffscreenResources();
     void createCommandQueue();
     void createRenderPipeline();
 

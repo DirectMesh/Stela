@@ -25,6 +25,8 @@
 #include <QuartzCore/QuartzCore.hpp>
 #endif
 
+#include "imgui_internal.h"
+
 #if defined(_WIN32)
 #include <windows.h>
 #elif defined(__APPLE__)
@@ -355,6 +357,8 @@ int main()
     
     // Better approach: watcher sets a flag, main loop handles reload.
     bool pendingReload = false;
+    // Persistent UI toggles
+    bool showFPSWindow = false;
 
         while (!quit)
     {
@@ -397,35 +401,66 @@ int main()
         ImGui::NewFrame();
         #endif
 
-        // Full-window dockspace host
-        ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->Pos);
-        ImGui::SetNextWindowSize(viewport->Size);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGuiWindowFlags host_flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
-            | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground;
+        // 1. Menu Bar (must be first to update Viewport WorkArea)
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Exit")) {
+                    quit = true;
+                }
+                ImGui::EndMenu();
+            }
 
-        // Make host window fully transparent so the central dock node does not dim the renderer
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        ImGui::Begin("DockSpace Host", nullptr, host_flags);
-        ImGui::PopStyleColor();
-        ImGui::PopStyleVar(2);
+            if (ImGui::BeginMenu("Scripts")) {
+                if (ImGui::MenuItem("Reload Scripts")) {
+                    ReloadScripts(&engine);
+                }
+                ImGui::EndMenu();
+            }
 
-        ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
-        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-
-        // Example Editor window docked into the dockspace
-        ImGui::Begin("Editor");
-        ImGui::Text("Stela Editor - ImGui overlay");
-        ImGui::Text("FPS: %.1f", 1.0f / engine.deltaTime);
-        if (ImGui::Button("Reload Scripts")) {
-            ReloadScripts(&engine);
+            if (ImGui::BeginMenu("Debug")) {
+                // Toggle persistent FPS window instead of creating it transiently inside the menu
+                ImGui::MenuItem("FPS", nullptr, &showFPSWindow);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
         }
+
+        // 2. DockSpace
+        ImGuiID dockspace_id = ImGui::GetID("MainDockSpace");
+        static bool first_time = true;
+        if (first_time) {
+            first_time = false;
+            ImGui::DockBuilderRemoveNode(dockspace_id);
+            ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->WorkSize);
+            
+            ImGuiID dock_main_id = dockspace_id;
+            ImGui::DockBuilderDockWindow("Viewport", dock_main_id);
+            
+            ImGui::DockBuilderFinish(dockspace_id);
+        }
+        ImGui::DockSpaceOverViewport(dockspace_id, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+
+        // Viewport Window
+        ImGui::Begin("Viewport");
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+#if !defined(__APPLE__)
+        static VkDescriptorSet sceneDS = VK_NULL_HANDLE;
+        if (sceneDS == VK_NULL_HANDLE) {
+             sceneDS = ImGui_ImplVulkan_AddTexture(engine.vulkan.OffscreenSampler, engine.vulkan.OffscreenImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        }
+        ImGui::Image((ImTextureID)sceneDS, viewportSize);
+#else
+        ImGui::Image((ImTextureID)engine.metal.OffscreenTexture, viewportSize);
+#endif
         ImGui::End();
 
-        ImGui::End(); // DockSpace Host
+        // Persistent FPS window (stays open until user closes it)
+        if (showFPSWindow) {
+            ImGui::Begin("Debug: FPS", &showFPSWindow);
+            ImGui::Text("FPS: %.1f", 1.0f / engine.deltaTime);
+            ImGui::End();
+        }
 
         ImGui::Render();
 

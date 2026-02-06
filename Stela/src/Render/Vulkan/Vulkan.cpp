@@ -1,5 +1,3 @@
-#if !defined(__APPLE__)
-
 #include "Vulkan.h"
 #include <stdexcept>
 #include <vector>
@@ -25,6 +23,7 @@ void Vulkan::Init(SDL_Window *window)
     CreateLogicalDevice();
     CreateSwapChain(window);
     CreateImageViews();
+    CreateOffscreenResources();
     CreateRenderPass();
     CreateGraphicsPipeline();
     CreateFramebuffers();
@@ -186,12 +185,21 @@ void Vulkan::SetupDebugMessenger()
     if (!EnableValidationLayers)
         return;
 
-    VkDebugUtilsMessengerCreateInfoEXT createInfo;
-    PopulateDebugMessengerCreateInfo(createInfo);
+    VkDebugUtilsMessengerCreateInfoEXT CreateInfo;
+    PopulateDebugMessengerCreateInfo(CreateInfo);
 
-    if (CreateDebugUtilsMessengerEXT(Instance, &createInfo, nullptr, &DebugMessenger) != VK_SUCCESS)
+    if (CreateDebugUtilsMessengerEXT(Instance, &CreateInfo, pAllocator, &DebugMessenger) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to set up debug messenger!");
+    }
+}
+
+static void DestroyDebugUtilsMessengerEXT(VkInstance Instance, VkDebugUtilsMessengerEXT DebugMessenger, const VkAllocationCallbacks *pAllocator)
+{
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(Instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != nullptr)
+    {
+        func(Instance, DebugMessenger, pAllocator);
     }
 }
 
@@ -562,6 +570,54 @@ void Vulkan::CreateSwapChain(SDL_Window *Window)
     SwapChainExtent = extent;
 }
 
+uint32_t Vulkan::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(gPhysicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
+}
+
+void Vulkan::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = format;
+    imageInfo.tiling = tiling;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = usage;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateImage(Device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create image!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(Device, image, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(Device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate image memory!");
+    }
+
+    vkBindImageMemory(Device, image, imageMemory, 0);
+}
+
 void Vulkan::CreateImageViews()
 {
     swapChainImageViews.resize(swapChainImages.size());
@@ -634,6 +690,110 @@ void Vulkan::CreateRenderPass()
     if (vkCreateRenderPass(Device, &renderPassInfo, nullptr, &RenderPass) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create render pass!");
+    }
+}
+
+void Vulkan::CreateOffscreenResources()
+{
+    // Create Image
+    CreateImage(SwapChainExtent.width, SwapChainExtent.height, SwapChainImageFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, OffscreenImage, OffscreenImageMemory);
+
+    // Create ImageView
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = OffscreenImage;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = SwapChainImageFormat;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+    if (vkCreateImageView(Device, &viewInfo, nullptr, &OffscreenImageView) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create texture image view!");
+    }
+
+    // Create Sampler
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.maxAnisotropy = 1.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    if (vkCreateSampler(Device, &samplerInfo, nullptr, &OffscreenSampler) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create texture sampler!");
+    }
+
+    // Create RenderPass for Offscreen
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = SwapChainImageFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    VkSubpassDependency dependencies[2];
+    dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependencies[0].dstSubpass = 0;
+    dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    dependencies[1].srcSubpass = 0;
+    dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+    dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 2;
+    renderPassInfo.pDependencies = dependencies;
+
+    if (vkCreateRenderPass(Device, &renderPassInfo, nullptr, &OffscreenRenderPass) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create offscreen render pass!");
+    }
+
+    // Create Framebuffer
+    VkFramebufferCreateInfo framebufferInfo{};
+    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferInfo.renderPass = OffscreenRenderPass;
+    framebufferInfo.attachmentCount = 1;
+    framebufferInfo.pAttachments = &OffscreenImageView;
+    framebufferInfo.width = SwapChainExtent.width;
+    framebufferInfo.height = SwapChainExtent.height;
+    framebufferInfo.layers = 1;
+
+    if (vkCreateFramebuffer(Device, &framebufferInfo, nullptr, &OffscreenFramebuffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create offscreen framebuffer!");
     }
 }
 
@@ -735,7 +895,7 @@ void Vulkan::CreateGraphicsPipeline()
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = PipelineLayout;
-    pipelineInfo.renderPass = RenderPass;
+    pipelineInfo.renderPass = OffscreenRenderPass; // Use OffscreenRenderPass
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
     pipelineInfo.basePipelineIndex = -1;              // Optional
@@ -743,6 +903,13 @@ void Vulkan::CreateGraphicsPipeline()
     if (vkCreateGraphicsPipelines(Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &GraphicsPipeline) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create graphics pipeline!");
+    }
+
+    // Create SwapChain Pipeline (for Runtime Mode)
+    pipelineInfo.renderPass = RenderPass; // Use SwapChain RenderPass
+    if (vkCreateGraphicsPipelines(Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &SwapChainPipeline) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create swapchain pipeline!");
     }
 
     vkDestroyShaderModule(Device, fragShaderModule, nullptr);
@@ -839,32 +1006,9 @@ void Vulkan::CreateCommandBuffer()
     }
 }
 
-void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+void Vulkan::RecordSceneCommands(VkCommandBuffer commandBuffer, VkPipeline pipeline)
 {
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0;                  // Optional
-    beginInfo.pInheritanceInfo = nullptr; // Optional
-
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to begin recording command buffer!");
-    }
-
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = RenderPass;
-    renderPassInfo.framebuffer = SwapChainFramebuffers[imageIndex];
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = SwapChainExtent;
-
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
-
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, GraphicsPipeline);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -882,14 +1026,71 @@ void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 
     // Main scene draw (triangle)
     vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+}
 
-    // Allow external code (Editor) to record additional commands (e.g., ImGui)
-    if (ImGuiRenderCallback)
+void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0;                  // Optional
+    beginInfo.pInheritanceInfo = nullptr; // Optional
+
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
     {
-        ImGuiRenderCallback(commandBuffer);
+        throw std::runtime_error("failed to begin recording command buffer!");
     }
 
-    vkCmdEndRenderPass(commandBuffer);
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+
+    if (ImGuiRenderCallback)
+    {
+        // 1. Offscreen Render Pass (Scene)
+        VkRenderPassBeginInfo offscreenPassInfo{};
+        offscreenPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        offscreenPassInfo.renderPass = OffscreenRenderPass;
+        offscreenPassInfo.framebuffer = OffscreenFramebuffer;
+        offscreenPassInfo.renderArea.offset = {0, 0};
+        offscreenPassInfo.renderArea.extent = SwapChainExtent;
+        offscreenPassInfo.clearValueCount = 1;
+        offscreenPassInfo.pClearValues = &clearColor;
+
+        vkCmdBeginRenderPass(commandBuffer, &offscreenPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        RecordSceneCommands(commandBuffer, GraphicsPipeline);
+        vkCmdEndRenderPass(commandBuffer);
+
+        // 2. UI Render Pass (Swapchain)
+        VkRenderPassBeginInfo uiPassInfo{};
+        uiPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        uiPassInfo.renderPass = RenderPass;
+        uiPassInfo.framebuffer = SwapChainFramebuffers[imageIndex];
+        uiPassInfo.renderArea.offset = {0, 0};
+        uiPassInfo.renderArea.extent = SwapChainExtent;
+        uiPassInfo.clearValueCount = 1;
+        uiPassInfo.pClearValues = &clearColor;
+
+        vkCmdBeginRenderPass(commandBuffer, &uiPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        
+        // Allow external code (Editor) to record additional commands (e.g., ImGui)
+        ImGuiRenderCallback(commandBuffer);
+
+        vkCmdEndRenderPass(commandBuffer);
+    }
+    else
+    {
+        // Runtime Mode: Render directly to Swapchain
+        VkRenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassInfo.renderPass = RenderPass;
+        renderPassInfo.framebuffer = SwapChainFramebuffers[imageIndex];
+        renderPassInfo.renderArea.offset = {0, 0};
+        renderPassInfo.renderArea.extent = SwapChainExtent;
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clearColor;
+
+        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        RecordSceneCommands(commandBuffer, SwapChainPipeline);
+        vkCmdEndRenderPass(commandBuffer);
+    }
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
     {
@@ -900,7 +1101,7 @@ void Vulkan::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIn
 void Vulkan::CreateSyncObjects()
 {
     ImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    RenderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    RenderFinishedSemaphores.resize(swapChainImages.size());
     InFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
@@ -912,10 +1113,14 @@ void Vulkan::CreateSyncObjects()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         if (vkCreateSemaphore(Device, &semaphoreInfo, nullptr, &ImageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(Device, &semaphoreInfo, nullptr, &RenderFinishedSemaphores[i]) != VK_SUCCESS ||
             vkCreateFence(Device, &fenceInfo, nullptr, &InFlightFences[i]) != VK_SUCCESS) {
-
             throw std::runtime_error("failed to create synchronization objects for a frame!");
+        }
+    }
+
+    for (size_t i = 0; i < swapChainImages.size(); i++) {
+        if (vkCreateSemaphore(Device, &semaphoreInfo, nullptr, &RenderFinishedSemaphores[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create render finished semaphore!");
         }
     }
 }
@@ -944,7 +1149,7 @@ void Vulkan::DrawFrame()
     submitInfo.pCommandBuffers = &CommandBuffers[currentFrame];
 
     // Signal the render-finished semaphore for this frame
-    VkSemaphore signalSemaphores[] = { RenderFinishedSemaphores[currentFrame] };
+    VkSemaphore signalSemaphores[] = { RenderFinishedSemaphores[imageIndex] };
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -973,9 +1178,12 @@ void Vulkan::DrawFrame()
 void Vulkan::Cleanup()
 {
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroySemaphore(Device, RenderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(Device, ImageAvailableSemaphores[i], nullptr);
         vkDestroyFence(Device, InFlightFences[i], nullptr);
+    }
+
+    for (size_t i = 0; i < RenderFinishedSemaphores.size(); i++) {
+        vkDestroySemaphore(Device, RenderFinishedSemaphores[i], nullptr);
     }
 
     vkDestroyCommandPool(Device, CommandPool, nullptr);
@@ -986,8 +1194,16 @@ void Vulkan::Cleanup()
     }
 
     vkDestroyPipeline(Device, GraphicsPipeline, nullptr);
+    vkDestroyPipeline(Device, SwapChainPipeline, nullptr);
     vkDestroyPipelineLayout(Device, PipelineLayout, nullptr);
     vkDestroyRenderPass(Device, RenderPass, nullptr);
+
+    vkDestroySampler(Device, OffscreenSampler, nullptr);
+    vkDestroyImageView(Device, OffscreenImageView, nullptr);
+    vkDestroyImage(Device, OffscreenImage, nullptr);
+    vkFreeMemory(Device, OffscreenImageMemory, nullptr);
+    vkDestroyFramebuffer(Device, OffscreenFramebuffer, nullptr);
+    vkDestroyRenderPass(Device, OffscreenRenderPass, nullptr);
 
     for (auto imageView : swapChainImageViews)
     {
@@ -1004,5 +1220,3 @@ void Vulkan::Cleanup()
     vkDestroySurfaceKHR(Instance, Surface, nullptr);
     vkDestroyInstance(Instance, nullptr);
 }
-
-#endif
